@@ -1,0 +1,131 @@
+----------------------
+sixmu todo/task list
+----------------------
+
+1. SI/PIF DMA and Input
+	- SI/PIF is incredibly complex. Just getting the LaC-doc type input going for now.
+2. Actual Interrupts?
+	- probably not working right, need to rewrite system update and reread vr4300 docs
+3. invalidating dynarec code on RAM writes and cart DMA.
+	- invalidation only supports DRAM writes
+	- haven't written invalidation for cart DMA, which will just out any pages it touches, should be easy(ish)
+4. Figure out why the recompiler goes nuts for certain values of the PIFseed @0x7E4.
+	- will take tracing the beginning of the PIF, matching the recomp output, and figuring out which instruction
+	  is failing if any. Somewhere there's still memory corruption / stack overflow if ram to be compiled is 
+	  full of garbage jumps.
+5. Figure out why the planet console demo will run sometimes, but crash on boot other times.
+	- it immediately jumps to beyond 0xB0000000. Running from cart? only works sometimes... huh.
+	- don't think it is related to 4, but possible
+6. FPU instructions - still need the non-easy comparisons, anything unordered or "signaled", etc
+
+-------------------
+Other Impl. Notes
+-------------------
+
+The only FPU comparison instructions supported are ones that are the simplest
+less than, greater than, etc. I'll get on the unordered, signaled, etc, later.
+
+I've reduced the instructions per scanline from my deduced ~2975 to a ~547
+that has a PeterLemon timing test get much closer to the test's expected values.
+
+Compiling with Clang has worse results (HCS demos don't work), thought 
+maybe it would be how much UB I'm using with the memory arrays (casting to
+whatever pointer type, technical euw, but the easiest way to express it, 
+at least at first), but changing some things to memcpy did not have any effect.
+
+I think it's unavoidable most (all?) of the FPU instructions will need to branch
+(whether if or ?:) based on whether regs are 64 or 32bit. I've been unable to
+find any info on what the physical arrangement is and how the apparent values 
+would change when the Status register bit is changed. Under the assumption that
+this would be considered undefined behavior to set bits, change SR bit, then
+use floating point operations, that will be ignored. In one situation, each
+32bit register will be the 4*register-number bytes into the register array, 
+with the 64bit regs being the same for doubles. In the other situation, each 32bit
+register will be the low 32bits of the same number 64bit register. Any code
+that depends on floating point values across changing the Status register bit
+will likely fail.
+
+The recompiler is now ignoring a BGEZAL instruction once if it appears at a specific
+address in order to get the standard boot process working. All the '-d' option
+does now, is speed things up semi-imperceptibly due to not needing the pif and bootcode
+to run.
+
+At first, the SI DMA/PIF/Input implementation (like most things) is going to be 
+entirely based on the old LaC docs and PeterLemon tests of the same.
+
+Have no idea what values are correct for the "RDRAM Registers" (not the RI) at 3F00000 
+at the top of the RDRAM area. Also no idea if it's at all necessary for the DP Span
+registers to do anything. Same with the "RI" registers at 0xa47..
+
+RAM is bswapped, and the 32bit SDL surfaces work fine like that, but they can't deal 
+with bswapped 16bit values. Getting 16bit data to the screen involves a detour to 
+copy to another buffer bswapping along the way. Also, SDL surfaces alpha blend 
+by default.
+
+VI only supports 320x240 or 640x480, 16 or 32bit (the basic options) detecting based
+on the most basic (and specific) values to write to the VI. No support for anything
+more fancy (like 640x240) or scaling tricks or non-resolution sized framebuffer lines.
+
+For now, I'm only supporting 16bit-swapped and already-correct roms. I've read
+that 32bit-swapped is rare. I don't know how true that is, but I haven't encountered any so far.
+
+I'm going to ignore the RSP for the foreseeable future, as even a few years ago
+when I got an interpreter going as much as I could, I still couldn't get roms
+that use libultra to boot in the first place (iirc something got to the point
+of trying to get the RSP to mix audio, but just one game).
+	- Might actually start implementing a recompiler for it, but only scalar instructions
+		if the vector unit gets done, it'll have to be regular C only, TCC doesn't support
+		any SSE instrinsics.
+
+---------------
+Dynarec notes
+---------------
+
+For certain values of PIFseed@7e4, the recompiler goes nuts and crashes when the bootcode
+gets to the point of running in IMEM.
+
+At first, I'm going all dynarec. There's no interpreter here.
+
+Basic blocks only with no internal jumping, and not over 
+~250 instructions. Interrupts are checked only between block executions.
+
+Currently not supporting the TLB, with a main reason being not knowning
+how to support it in the dynarec.
+
+DDIV instructions are causing "floating point exception" crashes. Apparently this happens
+when the result won't fit in the destination register bitsize. This shouldn't be
+possible with C code. Either there's a bug in libtcc, or I'm doing something horribly
+wrong/UB. I've gotten things to the point that only DDIV crashes, by using inline assembly.
+All other PeterLemon CPU (and CP1) instruction tests pass.
+
+A libtcc state can't be used more than once (?). Need to create/destroy tcc_state object
+for every BasicBlock compiled.
+
+-----------------
+RSP Stuff
+-----------------
+
+Implementing the RSP Scalar Unit should be simple as that code basically already exists
+for the regular CPU, the RSP-SU is just a 32bit version. For the vector unit, non-optimal
+looping is the order of the day as libtcc doesn't support SSE intrinsics. That's a rather
+future thing though.
+
+At first, I'd like to try to just HLE the display lists to get things playable. I'm either
+nowhere near getting games to the point of trying to use uCodes, or on the cusp because
+they appear to be either waiting in infinite loops for events (which should be happening as I 
+implemented interrupts which are running) after dispatching an initial thread or actually
+servicing the VI interrupt. Even the ones that actually handle the VI interrupt end up not
+actually doing anything else though.
+
+
+
+
+
+
+
+
+
+
+
+
+
