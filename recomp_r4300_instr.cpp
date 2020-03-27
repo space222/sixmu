@@ -83,7 +83,7 @@ bool c_bltzal(u32 opcode, BasicBlock* BB, std::string& func)
 	return true;
 }
 
-bool ignore_once = true;
+static bool ignore_once = true;
 
 bool c_bgezal(u32 opcode, BasicBlock* BB, std::string& func)
 {
