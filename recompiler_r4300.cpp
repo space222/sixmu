@@ -108,7 +108,7 @@ int cpu_run()
 {
 	cpu.R[0] = 0;
 
-	u32 maskedpc = cpu.PC & 0x1FFFFFFF;
+	u32 maskedpc = cpu.PC & 0x1FFFFFFC;
 
 	if( 0 )// bb_last_run && bb_last_run->start_addr == maskedpc )
 	{
@@ -129,7 +129,7 @@ int cpu_run()
 
 	if( iter == blocks_by_addr.end() )
 	{
-		BB = recompile_at(cpu.PC);
+		BB = recompile_at(cpu.PC&~3);
 		blocks_by_addr.insert(std::make_pair(maskedpc, BB));
 
 		blocks_by_page[maskedpc>>12].push_back(BB);
@@ -140,8 +140,9 @@ int cpu_run()
 	}
 
 	bb_last_run = BB;
+	u32 retval = BB->end_addr - BB->start_addr;
 	cpu.PC = ((recompfunc)BB->fptr)((u64*)&cpu);
-	return BB->end_addr - BB->start_addr;
+	return retval;
 }
 
 int run_from_elsewhere(std::vector<BasicBlock*>& blocks, u32 addr)
@@ -174,19 +175,19 @@ void invalidate_page(u32 page)
 
 	for(BasicBlock* b : c)
 	{
-		if( page > 0 )
+		u32 start_page = (b->start_addr&0x7ffffc)>>12;
+		u32 end_page = (b->end_addr&0x7ffffc)>>12;
+		if( start_page < page )
 		{
 			auto& b4 = blocks_by_page[page-1];
 			auto iter = std::find(b4.begin(), b4.end(), b);
 			if( iter != b4.end() ) b4.erase(iter);
-		}
-		if( page < 0x7FF )
-		{
+		} else if( end_page > page ) {
 			auto& aft = blocks_by_page[page+1];
 			auto iter = std::find(aft.begin(), aft.end(), b);
 			if( iter != aft.end() ) aft.erase(iter);
 		}
-		blocks_by_addr.erase(b->start_addr);
+		blocks_by_addr.erase(b->start_addr&0x7fffff);
 		deletionQ.push_back(b);
 	}
 
@@ -212,31 +213,31 @@ void invalidate_code(u32 addr)
 
 	auto iter = std::find_if(std::begin(c), std::end(c), range_check);
 	if( iter == std::end(c) ) return;
-	blocks_by_addr.erase((*iter)->start_addr&0x7FFFFC);
-	c.erase(iter);
+	BasicBlock* invld = *iter;
+	blocks_by_addr.erase(invld->start_addr&0x7FFFFC);
 
-	if( page > 0 )
+	u32 start_page = (invld->start_addr&0x7ffffc)>>12;
+	u32 end_page = (invld->end_addr&0x7ffffc)>>12;
+	if( start_page < page )
 	{
 		auto& c1 = blocks_by_page[page-1];
-		auto iter2 = std::find(std::begin(c1), std::end(c1), *iter);
+		auto iter2 = std::find(std::begin(c1), std::end(c1), invld);
 		if( iter2 != std::end(c1) ) 
 		{
 			c1.erase(iter2);
 		}
-	}
-
-	if( page < 0x7FF )
-	{
+	} else if( end_page > page ) {
 		auto& c1 = blocks_by_page[page+1];
-		auto iter2 = std::find(std::begin(c1), std::end(c1), *iter);
+		auto iter2 = std::find(std::begin(c1), std::end(c1), invld);
 		if( iter2 != std::end(c1) ) 
 		{
 			c1.erase(iter2);
 		}
 	}
 
-	deletionQ.push_back(*iter);
+	deletionQ.push_back(invld);
 
+	c.erase(iter);
 	return;
 }
 
@@ -249,8 +250,8 @@ void empty_deletion_queue()
 		{
 			++iter;
 		} else {
-			//delete[] (u8*)b->mem;
-			//delete b;
+			delete[] (u8*)b->mem;
+			delete b;
 			iter = deletionQ.erase(iter);
 		}	
 	}
