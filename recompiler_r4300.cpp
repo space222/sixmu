@@ -110,8 +110,8 @@ int cpu_run()
 
 	u32 maskedpc = cpu.PC & 0x1FFFFFFF;
 
-	if( bb_last_run && bb_last_run->start_addr == maskedpc )
-	{ // recently if(0)'d out
+	if( 0 )// bb_last_run && bb_last_run->start_addr == maskedpc )
+	{
 		u32 retval = bb_last_run->end_addr - bb_last_run->start_addr; 
 		cpu.PC = ((recompfunc)bb_last_run->fptr)((u64*)&cpu); //bb_last_run could be nullified during this
 		return retval;
@@ -133,7 +133,7 @@ int cpu_run()
 		blocks_by_addr.insert(std::make_pair(maskedpc, BB));
 
 		blocks_by_page[maskedpc>>12].push_back(BB);
-		if( (maskedpc>>12) != ((BB->end_addr&0x1FFFFFFF)>>12) )
+		if( (maskedpc>>12)!=0x7ff && (maskedpc>>12) != ((BB->end_addr&0x1FFFFFFF)>>12) )
 			blocks_by_page[(maskedpc>>12)+1].push_back(BB);		
 	} else {
 		BB = iter->second;
@@ -172,11 +172,6 @@ void invalidate_page(u32 page)
 {
 	auto& c = blocks_by_page[page];
 
-	if( (bb_last_run->start_addr&0x7fffff) <= (page<<12) && (bb_last_run->end_addr&0x7fffff) >= (page<<12) )
-	{
-		bb_last_run = nullptr;
-	}
-	
 	for(BasicBlock* b : c)
 	{
 		if( page > 0 )
@@ -195,6 +190,8 @@ void invalidate_page(u32 page)
 		deletionQ.push_back(b);
 	}
 
+	c.clear();
+
 	empty_deletion_queue();
 
 	return;
@@ -208,11 +205,6 @@ void invalidate_code(u32 addr)
 	}
 
 	addr &= ~3;
-
-	if( (bb_last_run->start_addr&0x7fffff) <= addr && (bb_last_run->end_addr&0x7fffff) > addr )
-	{
-		bb_last_run = nullptr;
-	}
 
 	u32 page = addr>>12;
 	auto& c = blocks_by_page[page];
@@ -250,13 +242,19 @@ void invalidate_code(u32 addr)
 
 void empty_deletion_queue()
 {
-	for(BasicBlock* b : deletionQ)
+	for(auto iter = std::begin(deletionQ); iter != std::end(deletionQ);)
 	{
-		delete (u8*)b->mem;
-		delete b;
+		auto b = *iter;
+		if( b == bb_last_run ) 
+		{
+			++iter;
+		} else {
+			//delete[] (u8*)b->mem;
+			//delete b;
+			iter = deletionQ.erase(iter);
+		}	
 	}
 
-	deletionQ.clear();
 	return;
 }
 
