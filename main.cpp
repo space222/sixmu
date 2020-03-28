@@ -5,13 +5,13 @@
 #include <chrono>
 #include <thread>
 #include "types.h"
-#include "libtcc.h"
+#include "cxxopts.hpp"
 
 SDL_Surface* MainWindowSurf;
 bool MainRunning = true;
-bool UsingInterpreter = true;
+bool UsingInterpreter = false;
 
-bool load_rom(char*);
+bool load_rom(const std::string&);
 int cpu_run();
 int interp_cpu_run();
 bool system_update(int);
@@ -27,13 +27,42 @@ extern u8 DRAM[8*1024*1024];
 
 int main(int argc, char** args)
 {
+	bool emupif = true;
+
 	if( argc < 2 )
 	{
 		puts("Usage: sixmu file.n64");
 		return 1;
 	}
 
-	bool emupif = true;
+	cxxopts::Options options("Sixmu", "N64 Emulator");
+	options.add_options()
+		("d", "Bypass PIF/Bootcode (programs using libultra will fail)")
+		("i,interpret", "Use the interpreter instead of dynarec")
+		("f,file", "ROM to emulate", cxxopts::value<std::string>())
+			;
+	options.parse_positional({"f"});
+
+	auto result = options.parse(argc, args);
+	if( result.count("d") )
+	{
+		emupif = false;
+	}
+	if( result.count("i") )
+	{
+		UsingInterpreter = true;
+	}
+	if( ! result.count("f") )
+	{
+		std::cout << options.help() << std::endl;
+		return 0;
+	}
+
+	if( !load_rom(result["f"].as<std::string>()) )
+	{
+		return 1;
+	}
+/*
 	int A = 1;
 	if( argc > 2 )
 	{
@@ -48,10 +77,14 @@ int main(int argc, char** args)
 	{
 		return 1;
 	}
-
+*/
 	//memset(&cpu, 0, sizeof(cpu));
 	
 	//for(int i = 0; i < 0x800000; ++i) DRAM[i] = 0xff;
+
+	u32 sum = 0;
+	for(int i = 0x40; i < 0x1000; ++i) sum += ROM[i];
+	printf("Bootcode simple sum = %x\n", sum);
 
 	if( emupif )
 	{
@@ -67,7 +100,12 @@ int main(int argc, char** args)
 		fclose(fp);
 		cpu.PC = 0xBFC00000;
 	} else {
-		u32 entry = cpu.PC = __builtin_bswap32(*(u32*)(ROM+8));
+		cpu.PC = __builtin_bswap32(*(u32*)(ROM+8));
+
+		if( sum == 0x371cc ) cpu.PC -= 0x200000;
+
+		u32 entry = cpu.PC;
+
 		printf("info: using entry point 0x%x\n", entry);
 
 		entry &= 0x1FFFFFFF;
@@ -75,9 +113,7 @@ int main(int argc, char** args)
 		memcpy(DRAM+entry, ROM+0x1000, (0x100000 > rom_size-0x1000) ? rom_size-0x1000 : 0x100000);
 	}
 
-	u32 sum = 0;
-	for(int i = 0x40; i < 0x1000; ++i) sum += ROM[i];
-	printf("Bootcode simple sum = %x\n", sum);
+	
 
 	SDL_Init(SDL_INIT_VIDEO|SDL_INIT_AUDIO);
 
@@ -96,7 +132,14 @@ int main(int argc, char** args)
 	// goes nuts the moment the bootcode jumps to RSP mem.
 	// for now the recompiler is ignoring the specific infinite loop instruction
 	// that prevents booting with incorrect checksum
-	*(u32*)(PIF + 0x7E4) = 0;
+	u32 bootcheck = 0;
+	switch( sum )
+	{
+	case 0x371cc: bootcheck = 0x2853f; break;
+	default: bootcheck = 0x3f3f; break;
+	}
+
+	*(u32*)(PIF + 0x7E4) = __builtin_bswap32(bootcheck);
 	*(u32*)(PIF + 0x7fc) = 0;
 
 	while( MainRunning )
@@ -123,10 +166,16 @@ int main(int argc, char** args)
 				ai_update(cc);
 			} while( !system_update(cc) );
 		} else {
+			int cc = 0;
 			do {
-				for(int i = 0; i < 547; ++i) interp_cpu_run();
-				ai_update(547);
-			} while( !system_update(547) );
+				interp_cpu_run();
+				cc++;
+				if( cc >= 547 )
+				{
+					ai_update(cc);
+					cc = 0;
+				}
+			} while( !system_update(1) );
 		}
 		SDL_UpdateWindowSurface(MainWindow);	
 	}

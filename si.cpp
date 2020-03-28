@@ -20,7 +20,7 @@ void si_reg_write32(u32 addr, u32 val)
 //	printf("SI: Write %x to %x\n", val, addr);
 	addr >>= 2;
 
-//	if( addr > 6 ) return;
+	if( addr > 6 ) return;
 
 	if( addr == 0 )
 	{

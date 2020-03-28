@@ -373,12 +373,18 @@ void interp_subu(u32 opcode)
 void interp_dmult(u32 opcode)
 {
 	SPECIAL_PARTS;
+	__int128 t128 = (__int128)(s64)cpu.R[rs] * (__int128)(s64)cpu.R[rt];
+	cpu.HI = (u64)(t128>>64);
+	cpu.LO = (u64)t128;
 	return;
 }
 
 void interp_dmultu(u32 opcode)
 {
 	SPECIAL_PARTS;
+	__uint128_t t128 = (__uint128_t)cpu.R[rs] * (__uint128_t)cpu.R[rt];
+	cpu.HI = (u64)(t128>>64);
+	cpu.LO = (u64)t128;
 	return;
 }
 
@@ -406,21 +412,21 @@ void interp_lui(u32 opcode)
 void interp_andi(u32 opcode)
 {
 	OPCODE_PARTS;
-	if( rt ) cpu.R[rt] = cpu.R[rs] & offset;
+	if( rt ) cpu.R[rt] = cpu.R[rs] & ze16to64(offset);
 	return;
 }
 
 void interp_ori(u32 opcode)
 {
 	OPCODE_PARTS;
-	if( rt ) cpu.R[rt] = cpu.R[rs] | offset;
+	if( rt ) cpu.R[rt] = cpu.R[rs] | ze16to64(offset);
 	return;
 }
 
 void interp_xori(u32 opcode)
 {
 	OPCODE_PARTS;
-	if( rt ) cpu.R[rt] = cpu.R[rs] ^ offset;
+	if( rt ) cpu.R[rt] = cpu.R[rs] ^ ze16to64(offset);
 	return;
 }
 
@@ -767,12 +773,7 @@ void interp_ddivu(u32 opcode)
 	SPECIAL_PARTS;
 	if( cpu.R[rt] == 0 )
 	{
-		if( cpu.R[rs]&BIT(31) )
-		{
-			cpu.LO = 1;
-		} else {
-			cpu.LO = -1LL;
-		}
+		cpu.LO = -1LL;
 		cpu.HI = cpu.R[rs];
 	} else {
 		cpu.LO = cpu.R[rs] / cpu.R[rt];
@@ -800,6 +801,10 @@ void interp_mfc0(u32 opcode)
 void interp_mtc0(u32 opcode)
 {
 	SPECIAL_PARTS;  // not actually SPECIAL, but uses rt and rd that match that opcode format
+	if( rd == CP0_Compare )
+	{
+		cpu.C[CP0_Cause] &= ~BIT(15);
+	}
 	cpu.C[rd] = (u64)(u32) cpu.R[rt];
 	return;
 }
@@ -834,6 +839,7 @@ void interp_eret(u32 opcode)
 		cpu.PC = cpu.C[CP0_EPC];
 		cpu.C[CP0_Status] &= ~BIT(1);
 	}
+	cpu.PC -= 4;
 	return;
 }
 
@@ -1103,7 +1109,7 @@ void interp_cop0(u32 opcode)
 		switch( opcode&0x3F )
 		{
 		//todo: tlb
-		case 0x18: return interp_eret(opcode);
+		case 0x18: interp_eret(opcode); return;
 		default: break;
 		}
 		return;
@@ -1336,13 +1342,11 @@ int interp_cpu_run()
 {
 	u32 opcode = read32(cpu.PC);
 	interp_op(opcode);
+	cpu.PC += 4;
 	if( branch_delay > 0 )
 	{
 		branch_delay--;
 		if( branch_delay == 0 ) cpu.PC = branch_target;
-		else cpu.PC += 4;
-	} else {
-		cpu.PC += 4;
 	}
 	return 1;
 }

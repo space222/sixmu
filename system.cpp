@@ -14,6 +14,8 @@ bool vi_update(int);
 
 bool once = true;
 
+bool everyother = true;
+
 bool system_update(int cpu_cycles)
 {
 	pi_update(cpu_cycles);
@@ -21,10 +23,14 @@ bool system_update(int cpu_cycles)
 
 	if( UsingInterpreter )
 	{
-		cpu.C[CP0_Count]++;
-		if( cpu.C[CP0_Count] == cpu.C[CP0_Compare] )
+		for(int i =0 ; i < cpu_cycles; ++i)
 		{
-			cpu.C[CP0_Cause] |= BIT(15);
+			everyother = !everyother;
+			if( everyother ) cpu.C[CP0_Count]++;
+			if( cpu.C[CP0_Count] == cpu.C[CP0_Compare] )
+			{
+				cpu.C[CP0_Cause] |= BIT(15);
+			}
 		}
 	} else {
 		if( cpu.C[CP0_Count] < cpu.C[CP0_Compare] && cpu.C[CP0_Count] + cpu_cycles >= cpu.C[CP0_Compare] )
@@ -49,8 +55,14 @@ bool system_update(int cpu_cycles)
 
 	if( (cpu.C[CP0_Cause]&cpu.C[CP0_Status]&0xFF00) && ((cpu.C[CP0_Status]&3)==1) ) 
 	{
-		cpu.C[CP0_EPC] = cpu.PC;
-		if( branch_delay ) cpu.C[CP0_EPC] |= BIT(31);
+		if( branch_delay )
+		{
+			cpu.C[CP0_Cause] |= BIT(31);
+			cpu.C[CP0_EPC] = cpu.PC - 4;
+		} else {
+			cpu.C[CP0_Cause] &= ~BIT(31);
+			cpu.C[CP0_EPC] = cpu.PC;
+		}
 		cpu.C[CP0_Status] |= 2;
 		cpu.PC = 0x80000180;
 	}

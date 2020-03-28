@@ -7,13 +7,13 @@ extern u8* ROM;
 extern u32 rom_size;
 
 
-bool load_rom(char* filename)
+bool load_rom(const std::string& filename)
 {
-	FILE* fp = fopen(filename, "rb");
+	FILE* fp = fopen(filename.c_str(), "rb");
 
 	if( ! fp )
 	{
-		printf("Error: unable to open '%s'\n", filename);
+		printf("Error: unable to open '%s'\n", filename.c_str());
 		return false;
 	}
 
@@ -32,12 +32,20 @@ bool load_rom(char* filename)
 		u16* temp = (u16*) ROM;
 		for(int i = 0; i < (rom_size>>1); ++i)
 		{
-			temp[i] = (temp[i]<<8)|(temp[i]>>8);
+			temp[i] = __builtin_bswap16(temp[i]);
 		}
 	} else if( F == 0x40123780 ) {
 		puts("info: ROM byte order is good");
+	} else if( F == 0x80371240 ) {
+		u32* temp = (u32*) ROM;
+		for(int i = 0; i < (rom_size>>2); ++i)
+		{
+			temp[i] = __builtin_bswap32(temp[i]);
+		}
+	} else if( (F&0xffff) == 0x3780 ) {
+		puts("info: ROM header has non-typical cart dma timings, but might work");
 	} else {
-		puts("error: not an n64 rom or unimplemented byte order");
+		printf("error: %x not an n64 rom or unimplemented byte order\n", F);
 		return false;
 	}
 

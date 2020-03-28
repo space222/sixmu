@@ -10,14 +10,14 @@ extern u32 mi_regs[4];
 extern bool UsingInterpreter;
 void invalidate_page(u32);
 
-u32 pi_regs[13] = {0};
+u32 pi_regs[16] = {0};
 
 void pi_reg_write32(u32 addr, u32 val)
 {
 	addr &= 0x3F;
-	printf("PI Write: %x to %x\n", val, addr);
 	addr >>= 2;
-
+	printf("PI Write: %x to %x\n", val, addr);
+	
 	if( addr > 12 ) return;
 
 	if( addr == 4 )
@@ -38,8 +38,10 @@ void pi_reg_write32(u32 addr, u32 val)
 		u32 cartaddr = (pi_regs[1]&0xFFFFFFF);
 		val++;
 		int length = (cartaddr + val) > rom_size ? rom_size - cartaddr : val;
+		printf("PI: cart dma! (start = %x, length = %x)\n", pi_regs[0], val);
+	
 		pi_regs[3] = pi_regs[4] = 0;
-		memcpy(start, ROM+cartaddr, length); // yes I know cartaddr could still be beyond ROM
+		memcpy(start, ROM+cartaddr, length);
 		mi_regs[2] |= BIT(4);
 
 		if( !UsingInterpreter ) 
@@ -49,11 +51,10 @@ void pi_reg_write32(u32 addr, u32 val)
 				invalidate_page(i>>12);
 			}
 		}
+
 		return;
 	}
 
-	pi_regs[addr] &= 0xff;
-	
 	return;
 }
 

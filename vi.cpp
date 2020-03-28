@@ -22,7 +22,7 @@ extern u8 DRAM[8*1024*1024];
 void vi_reg_write32(u32 addr, u32 val)
 {
 	addr &= 0x3F;
-	printf("VI: Write %x to %x\n", val, addr);
+	//printf("VI: Write %x to %x\n", val, addr);
 	addr >>= 2;
 
 	if( addr > 13 ) return;
@@ -31,7 +31,7 @@ void vi_reg_write32(u32 addr, u32 val)
 	{
 		// write to VI_V_CURRENT_LINE_REG clears scanline interrupt
 		mi_regs[2] &= ~BIT(3);
-		printf("VI: Ack Interrupt\n");
+		//printf("VI: Ack Interrupt\n");
 		return;
 	}
 
