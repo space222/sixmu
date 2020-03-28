@@ -13,11 +13,11 @@ extern regs cpu;
 #define se32to64(a)  ((s64)(s32)(a))
 #define se32to64u(a) ((u64)(s64)(s32)(a))
 #define se16to32(a)  ((s32)(s16)(a))
+#define se16to32u(a) ((u32)(s32)(s16)(a))
 #define se8to64(a)   ((s64)(s8) (a))
 #define se16to64(a)  ((s64)(s16)(a))
 #define ze16to64(a)  ((u64)(u16)(a))
 #define  ze8to64(a)  ((u64)(u8) (a))
-
 
 typedef void(*interpptr)(u32);
 void interp_op(u32 opcode);
@@ -29,6 +29,9 @@ void write8(u32, u8);
 void write16(u32, u16);
 void write32(u32, u32);
 void write64(u32, u64);
+
+int branch_delay = 0;
+u32 branch_target = 0;
 
 void undef_opcode(u32 opcode)
 {
@@ -43,24 +46,49 @@ void interp_trap(u32 opcode)
 void interp_bne(u32 opcode)
 {
 	OPCODE_PARTS;
+	if( cpu.R[rs] != cpu.R[rt] )
+	{
+		branch_target = (cpu.PC+4) + (se16to32(offset)<<2);
+		branch_delay = 2;
+	}
 	return;
 }
 
 void interp_bnel(u32 opcode)
 {
 	OPCODE_PARTS;
+	if( cpu.R[rs] != cpu.R[rt] )
+	{
+		branch_target = (cpu.PC+4) + (se16to32(offset)<<2);
+		branch_delay = 2;
+	} else {
+		cpu.PC += 4;
+	}
 	return;
 }
 
 void interp_bltzl(u32 opcode)
 {
 	REGIMM_PARTS;
+	if( (cpu.R[rs] >> 63) )
+	{
+		branch_target = (cpu.PC+4) + (se16to32(offset)<<2);
+		branch_delay = 2;
+	} else {
+		cpu.PC += 4;
+	}
 	return;
 }
 
 void interp_bltzal(u32 opcode)
 {
 	REGIMM_PARTS;
+	cpu.R[31] = cpu.PC + 8;
+	if( (cpu.R[rs] >> 63) )
+	{
+		branch_target = (cpu.PC+4) + (se16to32(offset)<<2);
+		branch_delay = 2;
+	}
 	return;
 }
 
@@ -69,72 +97,147 @@ static bool ignore_once = false;
 void interp_bgezal(u32 opcode)
 {
 	REGIMM_PARTS;
+	cpu.R[31] = cpu.PC + 8;
+	if( !(cpu.R[rs] >> 63) )
+	{
+		branch_target = (cpu.PC+4) + (se16to32(offset)<<2);
+		branch_delay = 2;
+	}
 	return;
 }
 
 void interp_bltzall(u32 opcode)
 {
 	REGIMM_PARTS;
+	cpu.R[31] = cpu.PC + 8;
+	if( (cpu.R[rs] >> 63) )
+	{
+		branch_target = (cpu.PC+4) + (se16to32(offset)<<2);
+		branch_delay = 2;
+	} else {
+		cpu.PC += 4;
+	}
 	return;
 }
 
 void interp_bgezall(u32 opcode)
 {
 	REGIMM_PARTS;
+	cpu.R[31] = cpu.PC + 8;
+	if( !(cpu.R[rs] >> 63) )
+	{
+		branch_target = (cpu.PC+4) + (se16to32(offset)<<2);
+		branch_delay = 2;
+	} else {
+		cpu.PC += 4;
+	}
 	return;
 }
 
 void interp_blezl(u32 opcode)
 {
 	OPCODE_PARTS;
+	if( (cpu.R[rs] >> 63) || (cpu.R[rs] == 0) )
+	{
+		branch_target = (cpu.PC+4) + (se16to32(offset)<<2);
+		branch_delay = 2;
+	} else {
+		cpu.PC += 4;
+	}
 	return;
 }
 
 void interp_bgtzl(u32 opcode)
 {
 	OPCODE_PARTS;
+	if( (cpu.R[rs]!=0) && !(cpu.R[rs] >> 63) )
+	{
+		branch_target = (cpu.PC+4) + (se16to32(offset)<<2);
+		branch_delay = 2;
+	} else {
+		cpu.PC += 4;
+	}
 	return;
 }
 
 void interp_bgezl(u32 opcode)
 {
 	REGIMM_PARTS;
+	if( !(cpu.R[rs] >> 63) )
+	{
+		branch_target = (cpu.PC+4) + (se16to32(offset)<<2);
+		branch_delay = 2;
+	} else {
+		cpu.PC += 4;
+	}
 	return;
 }
 
 void interp_beql(u32 opcode)
 {
 	OPCODE_PARTS;
+	if( cpu.R[rs] == cpu.R[rt] )
+	{
+		branch_target = (cpu.PC+4) + (se16to32(offset)<<2);
+		branch_delay = 2;
+	} else {
+		cpu.PC += 4;
+	}
 	return;
 }
 
 void interp_beq(u32 opcode)
 {
 	OPCODE_PARTS;
+	if( cpu.R[rs] == cpu.R[rt] )
+	{
+		branch_target = (cpu.PC+4) + (se16to32(offset)<<2);
+		branch_delay = 2;
+	}
 	return;
 }
 
 void interp_blez(u32 opcode)
 {
 	OPCODE_PARTS;
+	if( (cpu.R[rs] >> 63) || (cpu.R[rs] == 0) )
+	{
+		branch_target = (cpu.PC+4) + (se16to32(offset)<<2);
+		branch_delay = 2;
+	}
 	return;
 }
 
 void interp_bltz(u32 opcode)
 {
 	REGIMM_PARTS;
+	if( (cpu.R[rs] >> 63) )
+	{
+		branch_target = (cpu.PC+4) + (se16to32(offset)<<2);
+		branch_delay = 2;
+	}
 	return;
 }
 
 void interp_bgez(u32 opcode)
 {
 	REGIMM_PARTS;
+	if( !(cpu.R[rs] >> 63) )
+	{
+		branch_target = (cpu.PC+4) + (se16to32(offset)<<2);
+		branch_delay = 2;
+	}
 	return;
 }
 
 void interp_bgtz(u32 opcode)
 {
 	OPCODE_PARTS;
+	if( (cpu.R[rs]!=0) && !(cpu.R[rs] >> 63) )
+	{
+		branch_target = (cpu.PC+4) + (se16to32(offset)<<2);
+		branch_delay = 2;
+	}
 	return;
 }
 
@@ -195,23 +298,33 @@ void interp_syscall(u32 opcode)
 
 void interp_j(u32 opcode)
 {
+	branch_target = ((opcode<<2)&0x0FFFFFFF) | ((cpu.PC+4)&0xF0000000);
+	branch_delay = 2;
 	return;
 }
 
 void interp_jal(u32 opcode)
 {
+	cpu.R[31] = cpu.PC + 8;
+	branch_target = ((opcode<<2)&0x0FFFFFFF) | ((cpu.PC+4)&0xF0000000);
+	branch_delay = 2;
 	return;
 }
 
 void interp_jalr(u32 opcode)
 {
 	SPECIAL_PARTS;
+	if( rd ) cpu.R[rd] = cpu.PC + 8;
+	branch_target = cpu.R[rs];
+	branch_delay = 2;
 	return;
 }
 
 void interp_jr(u32 opcode)
 {
 	SPECIAL_PARTS;
+	branch_target = cpu.R[rs];
+	branch_delay = 2;
 	return;
 }
 
@@ -286,7 +399,7 @@ void interp_dsubu(u32 opcode)
 void interp_lui(u32 opcode)
 {
 	OPCODE_PARTS;
-	if( rt ) cpu.R[rt] = se32to64( cpu.R[rs] | (offset<<16) );
+	if( rt ) cpu.R[rt] = se32to64( (offset<<16) );
 	return;
 }
 
@@ -314,18 +427,21 @@ void interp_xori(u32 opcode)
 void interp_srlv(u32 opcode)
 {
 	SPECIAL_PARTS;
+	if( rd ) cpu.R[rd] = se32to64(  (u32)cpu.R[rt] >> (cpu.R[rs]&0x1F)  );
 	return;
 }
 
 void interp_slti(u32 opcode)
 {
 	OPCODE_PARTS;
+	if( rt ) cpu.R[rt] = (s32)cpu.R[rs] < se16to32(offset);
 	return;
 }
 
 void interp_sltiu(u32 opcode)
 {
 	OPCODE_PARTS;
+	if( rt ) cpu.R[rt] = (u32)cpu.R[rs] < se16to32u(offset);
 	return;
 }
 
@@ -346,24 +462,28 @@ void interp_sltu(u32 opcode)
 void interp_sllv(u32 opcode)
 {
 	SPECIAL_PARTS;
+	if( rd ) cpu.R[rd] = se32to64(  (u32)cpu.R[rt] << (cpu.R[rs]&0x1F)  );
 	return;
 }
 
 void interp_srav(u32 opcode)
 {
 	SPECIAL_PARTS;
+	if( rd ) cpu.R[rd] = se32to64(  (s32)cpu.R[rt] >> (cpu.R[rs]&0x1F)  );
 	return;
 }
 
 void interp_srl(u32 opcode)
 {
 	SPECIAL_PARTS;
+	if( rd ) cpu.R[rd] = se32to64(  (u32)cpu.R[rt] >> SA_PART   );
 	return;
 }
 
 void interp_sll(u32 opcode)
 {
 	SPECIAL_PARTS;
+	if( rd ) cpu.R[rd] = se32to64(  (u32)cpu.R[rt] << SA_PART   );
 	return;
 }
 
@@ -405,6 +525,7 @@ void interp_dsll32(u32 opcode)
 void interp_sra(u32 opcode)
 {
 	SPECIAL_PARTS;
+	if( rd ) cpu.R[rd] = se32to64(  (s32)cpu.R[rt] >> SA_PART   );
 	return;
 }
 
@@ -557,18 +678,23 @@ void interp_sd(u32 opcode)
 void interp_lwu(u32 opcode)
 {
 	OPCODE_PARTS;
+	u32 addr = se16to32(offset) + (u32)cpu.R[rs];
+	//todo: tlb
+	if( rt ) cpu.R[rt] = (u64)(u32) read32(addr&~3);
 	return;
 }
 
 void interp_daddiu(u32 opcode)
 {
 	OPCODE_PARTS;
+	if( rt ) cpu.R[rt] = cpu.R[rs] + se16to64(offset);
 	return;
 }
 
 void interp_addiu(u32 opcode)
 {
 	OPCODE_PARTS;
+	if( rt ) cpu.R[rt] = se32to64( (u32)cpu.R[rs] + se16to32(offset) );
 	return;
 }
 
@@ -586,8 +712,13 @@ void interp_div(u32 opcode)
 	SPECIAL_PARTS;
 	if( cpu.R[rt] == 0 )
 	{
-
-
+		if( cpu.R[rs]&BIT(31) )
+		{
+			cpu.LO = 1;
+		} else {
+			cpu.LO = -1LL;
+		}
+		cpu.HI = cpu.R[rs];
 	} else {
 		cpu.LO = se32to64((u32)cpu.R[rs] / (u32)cpu.R[rt]);
 		cpu.HI = se32to64((u32)cpu.R[rs] % (u32)cpu.R[rt]);
@@ -600,8 +731,13 @@ void interp_divu(u32 opcode)
 	SPECIAL_PARTS;
 	if( cpu.R[rt] == 0 )
 	{
-
-
+		if( cpu.R[rs]&BIT(31) )
+		{
+			cpu.LO = 1;
+		} else {
+			cpu.LO = -1LL;
+		}
+		cpu.HI = cpu.R[rs];
 	} else {
 		cpu.LO = se32to64((s32)cpu.R[rs] / (s32)cpu.R[rt]);
 		cpu.HI = se32to64((s32)cpu.R[rs] % (s32)cpu.R[rt]);
@@ -614,8 +750,13 @@ void interp_ddiv(u32 opcode)
 	SPECIAL_PARTS;
 	if( cpu.R[rt] == 0 )
 	{
-
-
+		if( cpu.R[rs]&BIT(31) )
+		{
+			cpu.LO = 1;
+		} else {
+			cpu.LO = -1LL;
+		}
+		cpu.HI = cpu.R[rs];
 	} else {
 		cpu.LO = (s64)cpu.R[rs] / (s64)cpu.R[rt];
 		cpu.HI = (s64)cpu.R[rs] % (s64)cpu.R[rt];
@@ -628,8 +769,13 @@ void interp_ddivu(u32 opcode)
 	SPECIAL_PARTS;
 	if( cpu.R[rt] == 0 )
 	{
-
-
+		if( cpu.R[rs]&BIT(31) )
+		{
+			cpu.LO = 1;
+		} else {
+			cpu.LO = -1LL;
+		}
+		cpu.HI = cpu.R[rs];
 	} else {
 		cpu.LO = cpu.R[rs] / cpu.R[rt];
 		cpu.HI = cpu.R[rs] % cpu.R[rt];
@@ -649,12 +795,14 @@ void interp_multu(u32 opcode)
 void interp_mfc0(u32 opcode)
 {
 	SPECIAL_PARTS;  // not actually SPECIAL, but uses rt and rd that match that opcode format
+	if( rt ) cpu.R[rt] = cpu.C[rd];
 	return;
 }
 
 void interp_mtc0(u32 opcode)
 {
 	SPECIAL_PARTS;  // not actually SPECIAL, but uses rt and rd that match that opcode format
+	cpu.C[rd] = (u64)(u32) cpu.R[rt];
 	return;
 }
 
@@ -680,6 +828,14 @@ void interp_ctc0(u32 opcode)
 
 void interp_eret(u32 opcode)
 {
+	if( cpu.C[CP0_Status] & BIT(2) )
+	{
+		cpu.PC = cpu.C[CP0_ErrorEPC];
+		cpu.C[CP0_Status] &= ~BIT(2);
+	} else {
+		cpu.PC = cpu.C[CP0_EPC];
+		cpu.C[CP0_Status] &= ~BIT(1);
+	}
 	return;
 }
 
