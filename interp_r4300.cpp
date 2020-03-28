@@ -710,7 +710,10 @@ void interp_mult(u32 opcode)
 void interp_div(u32 opcode)
 {
 	SPECIAL_PARTS;
-	if( cpu.R[rt] == 0 )
+	s64 a = (s64)(s32)cpu.R[rs];
+	s64 b = (s64)(s32)cpu.R[rt];
+
+	if( b == 0 )
 	{
 		if( cpu.R[rs]&BIT(31) )
 		{
@@ -720,8 +723,8 @@ void interp_div(u32 opcode)
 		}
 		cpu.HI = cpu.R[rs];
 	} else {
-		cpu.LO = se32to64((u32)cpu.R[rs] / (u32)cpu.R[rt]);
-		cpu.HI = se32to64((u32)cpu.R[rs] % (u32)cpu.R[rt]);
+		cpu.LO = ( a/b );
+		cpu.HI = ( a%b );
 	}
 	return;
 }
@@ -731,16 +734,11 @@ void interp_divu(u32 opcode)
 	SPECIAL_PARTS;
 	if( cpu.R[rt] == 0 )
 	{
-		if( cpu.R[rs]&BIT(31) )
-		{
-			cpu.LO = 1;
-		} else {
-			cpu.LO = -1LL;
-		}
+		cpu.LO = -1LL;
 		cpu.HI = cpu.R[rs];
 	} else {
-		cpu.LO = se32to64((s32)cpu.R[rs] / (s32)cpu.R[rt]);
-		cpu.HI = se32to64((s32)cpu.R[rs] % (s32)cpu.R[rt]);
+		cpu.LO = se32to64((u32)cpu.R[rs] / (u32)cpu.R[rt]);
+		cpu.HI = se32to64((u32)cpu.R[rs] % (u32)cpu.R[rt]);
 	}
 	return;
 }
@@ -1169,34 +1167,34 @@ void interp_ldc2(u32 opcode)
 void interp_ldl(u32 opcode)
 {
 	OPCODE_PARTS;
-/*
-	if( !rt ) return;
-	func += fmt::format("{{unsigned int addr = R[{0}] + {1}LL;\n"
-			    "unsigned int exc = check_vaddr(addr, {2:#x});\n"
-			    "if( exc != {2:#x} ) return exc;\n"
-			    "if( (addr&7) == 0 ) {{ R[{3}] = read64(addr); }} else {{\n"
-			    "unsigned int shft = (addr&7)<<3;\n"
-			    "unsigned long long mask = (1ULL << shft) - 1;\n"
-			    "R[{3}] = (R[{3}]&mask) | (read64(addr)<<shft);\n"
-			    "}} }}\n", rs, (s16)offset, BB->end_addr, rt);
-*/
+	u32 addr = cpu.R[rs] + se16to32(offset);
+	//todo: tlb
+	if( ! rt ) return;
+	if( (addr&7) == 0 ) 
+	{
+		cpu.R[rt] = read64(addr); 
+	} else {
+		unsigned int shft = (addr&7)<<3;
+		unsigned long long mask = (1ULL << shft) - 1;
+		cpu.R[rt] = (cpu.R[rt]&mask) | (read64(addr&~7)<<shft);
+	}
 	return;
 }
 
 void interp_ldr(u32 opcode)
 {
 	OPCODE_PARTS;
-	if( !rt ) return;
-/*
-	func += fmt::format("{{unsigned int addr = R[{0}] + {1}LL;\n"
-			    "unsigned int exc = check_vaddr(addr, {2:#x});\n"
-			    "if( exc != {2:#x} ) return exc;\n"
-			    "if( (addr&7) == 7 ) {{ R[{3}] = read64(addr); }} else {{\n"
-			    "unsigned long long mask = (1ULL << (((addr&7)+1)<<3)) - 1;\n"
-			    "unsigned int shft = (7 - (addr & 7)) << 3;\n"
-			    "R[{3}] = (R[{3}]&~mask) | (read64(addr)>>shft);\n"
-			    "}} }}\n", rs, (s16)offset, BB->end_addr, rt);
-*/
+	u32 addr = cpu.R[rs] + se16to32(offset);
+	//todo: tlb
+	if( ! rt ) return;
+	if( (addr&7) == 7 ) 
+	{
+		cpu.R[rt] = read64(addr); 
+	} else {
+		unsigned int shft = (7 - (addr & 7)) << 3;;
+		unsigned long long mask = (1ULL << (((addr&7)+1)<<3)) - 1;;
+		cpu.R[rt] = (cpu.R[rt]&~mask) | (read64(addr&~7)>>shft);
+	}
 	return;
 }
 
@@ -1211,100 +1209,94 @@ void interp_lwl(u32 opcode)
 	// what happens with this parameterized (equationized? :P ) stuff
 	// also the mips manuals are horrible compared to anything written by Intel
 	OPCODE_PARTS;
-/*
-	if( !rt ) return;
-	func += fmt::format("{{unsigned int addr = R[{0}] + {1};\n"
-			    "unsigned int exc = check_vaddr(addr, {2:#x});\n"
-			    "if( exc != {2:#x} ) return exc;\n"
-			    "if( (addr&3) == 0 ) {{ R[{3}] = (signed long long)(signed int)read32(addr); }} else {{\n"
-			    "unsigned int shft = (addr&3)<<3;\n"
-			    "unsigned long long mask = (1ULL << shft) - 1;\n"
-			    "R[{3}] = (signed long long)(signed int)((R[{3}]&mask) | (read32(addr)<<shft));\n"
-			    "}} }}\n", rs, (s16)offset, BB->end_addr, rt);
-*/
+	u32 addr = cpu.R[rs] + se16to32(offset);
+	if( (addr&3) == 0 ) 
+	{ 
+		cpu.R[rt] = se32to64(read32(addr)); 
+	} else {
+		u32 shft = (addr&3)<<3;
+		u64 mask = (1ULL << shft) - 1;
+		cpu.R[rt] = se32to64( (cpu.R[rt]&mask) | (read32(addr&~3)<<shft) );
+	}
 	return;
 }
 
 void interp_lwr(u32 opcode)
 {
 	OPCODE_PARTS;
-/*
-	if( !rt ) return;
-	func += fmt::format("{{unsigned int addr = R[{0}] + {1};\n"
-			    "unsigned int exc = check_vaddr(addr, {2:#x});\n"
-			    "if( exc != {2:#x} ) return exc;\n"
-			    "if( (addr&3) == 3 ) {{ R[{3}] = (signed long long)(signed int)read32(addr); }} else {{\n"
-			    "unsigned long long mask = (1ULL << (((addr&3)+1)<<3)) - 1;\n"
-			    "unsigned int shft = (3 - (addr & 3)) << 3;\n"
-			    "R[{3}] = (signed long long)(signed int)((R[{3}]&~mask) | (read32(addr)>>shft));\n"
-			    "}} }}\n", rs, (s16)offset, BB->end_addr, rt);
-*/
+	u32 addr = cpu.R[rs] + se16to32(offset);
+	if( (addr&3) == 3 ) 
+	{ 
+		cpu.R[rt] = se32to64(read32(addr&~3)); 
+	} else {
+		u32 shft = (3 - (addr & 3)) << 3;
+		u64 mask = (1ULL << (((addr&3)+1)<<3)) - 1;
+		cpu.R[rt] = se32to64( (cpu.R[rt]&~mask) | (read32(addr&~3)>>shft) );
+	}
 	return;
 }
 
 void interp_swl(u32 opcode)
 {
 	OPCODE_PARTS;
-/*
-	func += fmt::format("{{unsigned int addr = {1} + (int)R[{0}];\n"
-			    "unsigned int exc = check_vaddr(addr, {2:#x});\n"
-			    "if( exc != {2:#x} ) return exc;\n"
-			    "if( (addr&3) == 0 ) {{ write32(addr, R[{3}]); }} else {{\n"	
-			    "unsigned int mask = (1ULL << ((4 - (addr & 3)) * 8)) - 1;\n"
-			    "int shift = (addr&3) * 8;\n"
-			    "write32(addr, (read32(addr)&~mask) | (((unsigned int)R[{3}])>>shift));}} }}\n"
-				, rs, (s32)(s16)offset, BB->end_addr, rt);
-*/
+	u32 addr = cpu.R[rs] + se16to32(offset);
+	//todo: tlb
+	if( (addr&3) == 0 ) 
+	{
+		write32(addr, cpu.R[rt]);
+	} else {
+		u32 mask = (1ULL << ((4 - (addr & 3)) * 8)) - 1;
+		int shift = (addr&3) * 8;
+		write32(addr, (read32(addr&~3)&~mask) | (((u32)cpu.R[rt])>>shift) );
+	}
 	return;
 }
 
 void interp_swr(u32 opcode)
 {
 	OPCODE_PARTS;
-/*
-	func += fmt::format("{{unsigned int addr = R[{0}] + {1};\n"
-			    "unsigned int exc = check_vaddr(addr, {2:#x});\n"
-			    "if( exc != {2:#x} ) return exc;\n"
-			    "if( (addr&3) == 3 ) {{ write32(addr, R[{3}]); }} else {{\n"
-			    "unsigned int shft = (3-(addr&3))<<3;\n"
-			    "unsigned int mask = (1 << shft) - 1;\n"
-			    "unsigned int stmp = read32(addr);\n"
-			    "write32(addr, ((stmp&mask) | (R[{3}]<<shft)));\n"
-			    "}} }}\n", rs, (s16)offset, BB->end_addr, rt);
-*/
+	u32 addr = cpu.R[rs] + se16to32(offset);
+	//todo: tlb
+	if( (addr&3) == 3 )
+	{
+		write32(addr, cpu.R[rt]);
+	} else {
+		int shft = (3-(addr&3))<<3;
+		u32 mask = (1 << shft) - 1;
+		write32(addr, ((read32(addr&~3)&mask) | (cpu.R[rt]<<shft)));
+	}
 	return;
 }
 
 void interp_sdl(u32 opcode)
 {
 	OPCODE_PARTS;
-/*
-	func += fmt::format("{{unsigned int addr = R[{0}] + {1:#x};\n"
-			    "unsigned int exc = check_vaddr(addr, {2:#x});\n"
-			    "if( exc != {2:#x} ) return exc;\n"
-			    "if( (addr&7) == 0 ) {{ write64(addr, R[{3}]); }} else {{\n"
-			    "unsigned long long mask = (1ULL << ((8 - (addr&7))*8)) - 1;\n"
-			    "int shift = (addr&7)*8;\n"
-			    "write64(addr, (read64(addr)&~mask) | (R[{3}]>>shift));}} }}\n"
-				, rs, (u32)(s32)(s16)offset, BB->end_addr, rt);
-*/
+	u32 addr = cpu.R[rs] + se16to32(offset);
+	//todo: tlb
+	if( (addr&7) == 0 )
+	{
+		write64(addr, cpu.R[rt]);
+	} else {
+		u64 mask = (1ULL << ((8 - (addr&7))*8)) - 1;
+		int shift = (addr&7)*8;
+		write64(addr, (read64(addr&~7)&~mask) | (cpu.R[rt]>>shift));
+	}
 	return;
 }
 
 void interp_sdr(u32 opcode)
 {
 	OPCODE_PARTS;
-/*
-	func += fmt::format("{{unsigned int addr = R[{0}] + {1:#x};\n"
-			    "unsigned int exc = check_vaddr(addr, {2:#x});\n"
-			    "if( exc != {2:#x} ) return exc;\n"
-			    "if( (addr&7) == 7 ) {{ write64(addr, R[{3}]); }} else {{\n"
-			    "unsigned long long old_word = read64(addr);\n"
-			    "int new_shift = (7 - (addr & 7)) * 8;\n"
-			    "unsigned long long old_mask = (1ULL << new_shift) - 1;\n"
-			    "write64(addr, (old_word & old_mask) | (R[{3}] << new_shift));\n"
-			    "}} }}\n", rs, (u32)(s32)(s16)offset, BB->end_addr, rt);
-*/
+	u32 addr = cpu.R[rs] + se16to32(offset);
+	//todo: tlb
+	if( (addr&7) == 7 )
+	{
+		write64(addr, cpu.R[rt]);
+	} else {
+		int shift = (7 - (addr & 7)) * 8;
+		u64 mask = (1ULL << shift) - 1;
+		write64(addr, (read64(addr&~7) & mask) | (cpu.R[rt] << shift));
+	}
 	return;
 }
 
@@ -1344,6 +1336,14 @@ int interp_cpu_run()
 {
 	u32 opcode = read32(cpu.PC);
 	interp_op(opcode);
+	if( branch_delay > 0 )
+	{
+		branch_delay--;
+		if( branch_delay == 0 ) cpu.PC = branch_target;
+		else cpu.PC += 4;
+	} else {
+		cpu.PC += 4;
+	}
 	return 1;
 }
 

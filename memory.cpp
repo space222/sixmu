@@ -2,6 +2,8 @@
 #include <cstring>
 #include "types.h"
 
+extern bool UsingInterpreter;
+
 u8 DMEM[0x1000];
 u8 IMEM[0x1000];
 u8 DRAM[8*1024*1024];
@@ -196,7 +198,7 @@ void write8(u32 addr, u8 val)
 		if( addr < 0x800000 ) 
 		{
 			DRAM[addr] = val;
-			invalidate_code(addr);
+			if( !UsingInterpreter ) invalidate_code(addr);
 		}
 		
 		else if( addr >= 0x04000000 && addr < 0x04001000 ) DMEM[addr&0xfff] = val;
@@ -228,7 +230,7 @@ void write16(u32 addr, u16 val)
 		if( addr < 0x800000 )
 		{
 			memcpy((DRAM+(addr&0x7FFFFe)), &val, 2);
-			invalidate_code(addr);
+			if( !UsingInterpreter ) invalidate_code(addr);
 		}
 		
 		else if( addr >= 0x04000000 && addr < 0x04001000 ) *(u16*)(DMEM+(addr&0xffe)) = val;
@@ -260,7 +262,7 @@ void write32(u32 addr, u32 val)
 		{
 			val = __builtin_bswap32(val);
 			memcpy((DRAM+(addr&0x7FFFFc)), &val, 4);
-			invalidate_code(addr);
+			if( !UsingInterpreter ) invalidate_code(addr);
 		}
 
 		else if( addr >= 0x04000000 && addr < 0x04001000 ) *(u32*)(DMEM+(addr&0xffc)) = __builtin_bswap32(val);
@@ -302,7 +304,7 @@ void write64(u32 addr, u64 val)
 		if( addr < 0x800000 )
 		{
 			memcpy((DRAM+(addr&0x7FFFF8)), &val, 8);
-			invalidate_code(addr);
+			if( !UsingInterpreter ) invalidate_code(addr);
 		}
 		
 		else if( addr >= 0x04000000 && addr < 0x04001000 ) *(u64*)(DMEM+(addr&0xff8)) = val;

@@ -9,9 +9,11 @@
 
 SDL_Surface* MainWindowSurf;
 bool MainRunning = true;
+bool UsingInterpreter = true;
 
 bool load_rom(char*);
 int cpu_run();
+int interp_cpu_run();
 bool system_update(int);
 void ai_update(int);
 void vi_init();
@@ -112,13 +114,20 @@ int main(int argc, char** args)
 			}
 		}
 
-		int cc;
-		do
+		if( !UsingInterpreter )
 		{
-			cc = cpu_run()/4;
-			ai_update(cc);
-		} while( !system_update(cc) );
-
+			int cc;
+			do
+			{
+				cc = cpu_run()/4;
+				ai_update(cc);
+			} while( !system_update(cc) );
+		} else {
+			do {
+				for(int i = 0; i < 547; ++i) interp_cpu_run();
+				ai_update(547);
+			} while( !system_update(547) );
+		}
 		SDL_UpdateWindowSurface(MainWindow);	
 	}
 

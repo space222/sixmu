@@ -14,7 +14,7 @@ void mi_reg_write32(u32 addr, u32 val)
 	if( addr == 0 )
 	{
 		//bit11 clear DP interupt
-		mi_regs[2] &= ~BIT(5);
+		if( val&BIT(11) ) mi_regs[2] &= ~BIT(5);
 		return;
 	}
 

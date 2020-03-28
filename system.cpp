@@ -5,6 +5,8 @@
 
 extern regs cpu;
 extern u32 mi_regs[4];
+extern int branch_delay;
+extern bool UsingInterpreter;
 
 void ai_update(int);
 void pi_update(int);
@@ -17,16 +19,25 @@ bool system_update(int cpu_cycles)
 	pi_update(cpu_cycles);
 	bool do_window_update = vi_update(cpu_cycles);
 
-	if( cpu.C[CP0_Count] < cpu.C[CP0_Compare] && cpu.C[CP0_Count] + cpu_cycles >= cpu.C[CP0_Compare] )
+	if( UsingInterpreter )
 	{
-		// handle some amount of rollover?	
-//		cpu.C[CP0_Count] = cpu.C[CP0_Compare];
-//		cpu.C[CP0_Cause] |= BIT(15);
-	} else if( ((cpu.C[CP0_Count]>>31)&1) && !((cpu.C[CP0_Count]+(cpu_cycles<<4))>>31&1) )  {
-//		cpu.C[CP0_Count] = cpu.C[CP0_Compare] = 0;
-//		cpu.C[CP0_Cause] |= BIT(15);
+		cpu.C[CP0_Count]++;
+		if( cpu.C[CP0_Count] == cpu.C[CP0_Compare] )
+		{
+			cpu.C[CP0_Cause] |= BIT(15);
+		}
 	} else {
-		cpu.C[CP0_Count] += cpu_cycles<<4;
+		if( cpu.C[CP0_Count] < cpu.C[CP0_Compare] && cpu.C[CP0_Count] + cpu_cycles >= cpu.C[CP0_Compare] )
+		{
+			// handle some amount of rollover?	
+	//		cpu.C[CP0_Count] = cpu.C[CP0_Compare];
+	//		cpu.C[CP0_Cause] |= BIT(15);
+		} else if( ((cpu.C[CP0_Count]>>31)&1) && !((cpu.C[CP0_Count]+(cpu_cycles<<4))>>31&1) )  {
+	//		cpu.C[CP0_Count] = cpu.C[CP0_Compare] = 0;
+	//		cpu.C[CP0_Cause] |= BIT(15);
+		} else {
+			cpu.C[CP0_Count] += cpu_cycles<<4;
+		}
 	}
 
 	if( mi_regs[3]&mi_regs[2]&0x3F )
@@ -39,6 +50,7 @@ bool system_update(int cpu_cycles)
 	if( (cpu.C[CP0_Cause]&cpu.C[CP0_Status]&0xFF00) && ((cpu.C[CP0_Status]&3)==1) ) 
 	{
 		cpu.C[CP0_EPC] = cpu.PC;
+		if( branch_delay ) cpu.C[CP0_EPC] |= BIT(31);
 		cpu.C[CP0_Status] |= 2;
 		cpu.PC = 0x80000180;
 	}
