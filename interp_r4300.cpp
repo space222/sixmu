@@ -8,6 +8,16 @@ extern regs cpu;
 #define SPECIAL_PARTS int rs = (opcode>>21)&0x1F; int rt = (opcode>>16)&0x1F; int rd = (opcode>>11)&0x1F
 #define OPCODE_PARTS  int rs = (opcode>>21)&0x1F; int rt = (opcode>>16)&0x1F; u16 offset = (opcode&0xFFFF)
 #define REGIMM_PARTS  int rs = (opcode>>21)&0x1F; u16 offset = (opcode&0xFFFF);
+#define SA_PART ((opcode>>6)&0x1F)
+
+#define se32to64(a)  ((s64)(s32)(a))
+#define se32to64u(a) ((u64)(s64)(s32)(a))
+#define se16to32(a)  ((s32)(s16)(a))
+#define se8to64(a)   ((s64)(s8) (a))
+#define se16to64(a)  ((s64)(s16)(a))
+#define ze16to64(a)  ((u64)(u16)(a))
+#define  ze8to64(a)  ((u64)(u8) (a))
+
 
 typedef void(*interpptr)(u32);
 void interp_op(u32 opcode);
@@ -135,7 +145,7 @@ interpptr regimm_ops[] = {
 	undef_opcode, undef_opcode, undef_opcode, undef_opcode, undef_opcode, undef_opcode, undef_opcode, undef_opcode
 };
 
-void compile_regimm(u32 opcode)
+void interp_regimm(u32 opcode)
 {
 	regimm_ops[(opcode>>16)&0x1F](opcode);
 	return;
@@ -208,36 +218,42 @@ void interp_jr(u32 opcode)
 void interp_and(u32 opcode)
 {
 	SPECIAL_PARTS;
+	if( rd ) cpu.R[rd] = (cpu.R[rs] & cpu.R[rt]);
 	return;
 }
 
 void interp_or(u32 opcode)
 {
 	SPECIAL_PARTS;
+	if( rd ) cpu.R[rd] = (cpu.R[rs] | cpu.R[rt]);
 	return;
 }
 
 void interp_xor(u32 opcode)
 {
 	SPECIAL_PARTS;
+	if( rd ) cpu.R[rd] = (cpu.R[rs] ^ cpu.R[rt]);
 	return;
 }
 
 void interp_nor(u32 opcode)
 {
 	SPECIAL_PARTS;
+	if( rd ) cpu.R[rd] = ~(cpu.R[rs] | cpu.R[rt]);
 	return;
 }
 
 void interp_addu(u32 opcode)
 {
 	SPECIAL_PARTS;
+	if( rd ) cpu.R[rd] = se32to64( (u32)cpu.R[rs] + (u32)cpu.R[rt] );
 	return;
 }
 
 void interp_subu(u32 opcode)
 {
 	SPECIAL_PARTS;
+	if( rd ) cpu.R[rd] = se32to64( (u32)cpu.R[rs] - (u32)cpu.R[rt] );
 	return;
 }
 
@@ -256,36 +272,42 @@ void interp_dmultu(u32 opcode)
 void interp_daddu(u32 opcode)
 {
 	SPECIAL_PARTS;
+	if( rd ) cpu.R[rd] = cpu.R[rs] + cpu.R[rt];
 	return;
 }
 
 void interp_dsubu(u32 opcode)
 {
 	SPECIAL_PARTS;
+	if( rd ) cpu.R[rd] = cpu.R[rs] - cpu.R[rt];
 	return;
 }
 
 void interp_lui(u32 opcode)
 {
 	OPCODE_PARTS;
+	if( rt ) cpu.R[rt] = se32to64( cpu.R[rs] | (offset<<16) );
 	return;
 }
 
 void interp_andi(u32 opcode)
 {
 	OPCODE_PARTS;
+	if( rt ) cpu.R[rt] = cpu.R[rs] & offset;
 	return;
 }
 
 void interp_ori(u32 opcode)
 {
 	OPCODE_PARTS;
+	if( rt ) cpu.R[rt] = cpu.R[rs] | offset;
 	return;
 }
 
 void interp_xori(u32 opcode)
 {
 	OPCODE_PARTS;
+	if( rt ) cpu.R[rt] = cpu.R[rs] ^ offset;
 	return;
 }
 
@@ -310,12 +332,14 @@ void interp_sltiu(u32 opcode)
 void interp_slt(u32 opcode)
 {
 	SPECIAL_PARTS;
+	if( rd ) cpu.R[rd] = (s64)cpu.R[rs] < (s64)cpu.R[rt];
 	return;
 }
 
 void interp_sltu(u32 opcode)
 {
 	SPECIAL_PARTS;
+	if( rd ) cpu.R[rd] = cpu.R[rs] < cpu.R[rt];
 	return;
 }
 
@@ -346,30 +370,35 @@ void interp_sll(u32 opcode)
 void interp_dsllv(u32 opcode)
 {
 	SPECIAL_PARTS;
+	if( rd ) cpu.R[rd] = cpu.R[rt] << (cpu.R[rs]&0x3F);
 	return;
 }
 
 void interp_dsrlv(u32 opcode)
 {
 	SPECIAL_PARTS;
+	if( rd ) cpu.R[rd] = cpu.R[rt] >> (cpu.R[rs]&0x3F);
 	return;
 }
 
 void interp_dsrav(u32 opcode)
 {
 	SPECIAL_PARTS;
+	if( rd ) cpu.R[rd] = (s64)cpu.R[rt] >> (cpu.R[rs]&0x3F);
 	return;
 }
 
 void interp_dsll(u32 opcode)
 {
 	SPECIAL_PARTS;
+	if( rd ) cpu.R[rd] = cpu.R[rt] << ((opcode>>6)&0x1F);
 	return;
 }
 
 void interp_dsll32(u32 opcode)
 {
 	SPECIAL_PARTS;
+	if( rd ) cpu.R[rd] = cpu.R[rt] << (32 + SA_PART);
 	return;
 }
 
@@ -382,111 +411,148 @@ void interp_sra(u32 opcode)
 void interp_dsra(u32 opcode)
 {
 	SPECIAL_PARTS;
+	if( rd ) cpu.R[rd] = (s64)cpu.R[rt] >> SA_PART;
 	return;
 }
 
 void interp_dsrl(u32 opcode)
 {
 	SPECIAL_PARTS;
+	if( rd ) cpu.R[rd] = cpu.R[rt] >> SA_PART;
 	return;
 }
 
 void interp_dsrl32(u32 opcode)
 {
 	SPECIAL_PARTS;
+	if( rd ) cpu.R[rd] = cpu.R[rt] >> (32 + SA_PART);
 	return;
 }
 
 void interp_dsra32(u32 opcode)
 {
 	SPECIAL_PARTS;
+	if( rd ) cpu.R[rd] = (s64)cpu.R[rt] >> (32 + SA_PART);
 	return;
 }
 
 void interp_mfhi(u32 opcode)
 {
 	SPECIAL_PARTS;
+	if( rd ) cpu.R[rd] = cpu.HI;
 	return;
 }
 
 void interp_mflo(u32 opcode)
 {
 	SPECIAL_PARTS;
+	if( rd ) cpu.R[rd] = cpu.LO;
 	return;
 }
 
 void interp_mthi(u32 opcode)
 {
 	SPECIAL_PARTS;
+	cpu.LO = cpu.R[rs];
 	return;
 }
 
 void interp_mtlo(u32 opcode)
 {
 	SPECIAL_PARTS;
+	cpu.LO = cpu.R[rs];
 	return;
 }
 
 void interp_lb(u32 opcode)
 {
 	OPCODE_PARTS;
+	u32 addr = se16to32(offset) + (u32)cpu.R[rs];
+	//todo: tlb
+	cpu.R[rt] = se8to64( read8(addr) );
 	return;
 }
 
 void interp_lbu(u32 opcode)
 {
 	OPCODE_PARTS;
+	u32 addr = se16to32(offset) + (u32)cpu.R[rs];
+	//todo: tlb
+	cpu.R[rt] = ze8to64( read8(addr) );
 	return;
 }
 
 void interp_lh(u32 opcode)
 {
 	OPCODE_PARTS;
+	u32 addr = se16to32(offset) + (u32)cpu.R[rs];
+	//todo: tlb
+	cpu.R[rt] = se16to64( read16(addr&~1) );
 	return;
 }
 
 void interp_lhu(u32 opcode)
 {
 	OPCODE_PARTS;
+	u32 addr = se16to32(offset) + (u32)cpu.R[rs];
+	//todo: tlb
+	cpu.R[rt] = ze16to64( read16(addr&~1) );
 	return;
 }
 
 void interp_lw(u32 opcode)
 {
 	OPCODE_PARTS;
+	u32 addr = se16to32(offset) + (u32)cpu.R[rs];
+	//todo: tlb
+	cpu.R[rt] = se32to64( read32(addr&~3) );
 	return;
 }
 
 void interp_ld(u32 opcode)
 {
 	OPCODE_PARTS;
+	u32 addr = se16to32(offset) + (u32)cpu.R[rs];
+	//todo: tlb
+	cpu.R[rt] = read64(addr&~7);
 	return;
 }
 
 void interp_sb(u32 opcode)
 {
 	OPCODE_PARTS;
+	u32 addr = se16to32(offset) + (u32)cpu.R[rs];
+	//todo: tlb
+	write8(addr, cpu.R[rt]);
 	return;
 }
 
 void interp_sh(u32 opcode)
 {
 	OPCODE_PARTS;
+	u32 addr = se16to32(offset) + (u32)cpu.R[rs];
+	//todo: tlb
+	write16(addr&~1, cpu.R[rt]);
 	return;
 }
 
 void interp_sw(u32 opcode)
 {
 	OPCODE_PARTS;
+	u32 addr = se16to32(offset) + (u32)cpu.R[rs];
+	//todo: tlb
+	write32(addr&~3, cpu.R[rt]);
 	return;
 }
 
 void interp_sd(u32 opcode)
 {
 	OPCODE_PARTS;
+	u32 addr = se16to32(offset) + (u32)cpu.R[rs];
+	//todo: tlb
+	write64(addr&~7, cpu.R[rt]);
 	return;
 }
-
 
 void interp_lwu(u32 opcode)
 {
@@ -509,36 +575,74 @@ void interp_addiu(u32 opcode)
 void interp_mult(u32 opcode)
 {
 	SPECIAL_PARTS;
+	s64 a = se32to64(cpu.R[rs]) * se32to64(cpu.R[rt]);
+	cpu.HI = se32to64(a>>32);
+	cpu.LO = se32to64(a&0xffffffff);
 	return;
 }
 
 void interp_div(u32 opcode)
 {
 	SPECIAL_PARTS;
+	if( cpu.R[rt] == 0 )
+	{
+
+
+	} else {
+		cpu.LO = se32to64((u32)cpu.R[rs] / (u32)cpu.R[rt]);
+		cpu.HI = se32to64((u32)cpu.R[rs] % (u32)cpu.R[rt]);
+	}
 	return;
 }
 
 void interp_divu(u32 opcode)
 {
 	SPECIAL_PARTS;
+	if( cpu.R[rt] == 0 )
+	{
+
+
+	} else {
+		cpu.LO = se32to64((s32)cpu.R[rs] / (s32)cpu.R[rt]);
+		cpu.HI = se32to64((s32)cpu.R[rs] % (s32)cpu.R[rt]);
+	}
 	return;
 }
 
 void interp_ddiv(u32 opcode)
 {
 	SPECIAL_PARTS;
+	if( cpu.R[rt] == 0 )
+	{
+
+
+	} else {
+		cpu.LO = (s64)cpu.R[rs] / (s64)cpu.R[rt];
+		cpu.HI = (s64)cpu.R[rs] % (s64)cpu.R[rt];
+	}
 	return;
 }
 
 void interp_ddivu(u32 opcode)
 {
 	SPECIAL_PARTS;
+	if( cpu.R[rt] == 0 )
+	{
+
+
+	} else {
+		cpu.LO = cpu.R[rs] / cpu.R[rt];
+		cpu.HI = cpu.R[rs] % cpu.R[rt];
+	}
 	return;
 }
 
 void interp_multu(u32 opcode)
 {
 	SPECIAL_PARTS;
+	u64 a = se32to64u(cpu.R[rs]) * se32to64u(cpu.R[rt]);
+	cpu.HI = se32to64(a>>32);
+	cpu.LO = se32to64(a&0xffffffff);
 	return;
 }
 
@@ -1058,13 +1162,13 @@ void interp_scd(u32 opcode)
 	return;
 }
 
-void compile_special(u32 opcode)
+void interp_special(u32 opcode)
 {
 	special_ops[opcode & 0x3F](opcode);
 	return;
 }
 
-interpptr opcodes[] = { compile_special, compile_regimm, interp_j, interp_jal, interp_beq, interp_bne, interp_blez, interp_bgtz,
+interpptr opcodes[] = { interp_special, interp_regimm, interp_j, interp_jal, interp_beq, interp_bne, interp_blez, interp_bgtz,
 	interp_addiu, interp_addiu, interp_slti, interp_sltiu, interp_andi, interp_ori, interp_xori, interp_lui,			
 	interp_cop0, interp_cop1, interp_cop2, undef_opcode, interp_beql, interp_bnel, interp_blezl, interp_bgtzl,
 	interp_daddiu, interp_daddiu, interp_ldl, interp_ldr, undef_opcode, undef_opcode, undef_opcode, undef_opcode,
@@ -1074,7 +1178,7 @@ interpptr opcodes[] = { compile_special, compile_regimm, interp_j, interp_jal, i
 	interp_sc, interp_swc1, interp_swc2, undef_opcode, interp_scd, interp_sdc1, interp_sdc2, interp_sd
 };
 
-void compile_op(u32 opcode)
+void interp_op(u32 opcode)
 {
 	opcodes[(opcode>>26)](opcode);
 	return;
@@ -1082,6 +1186,9 @@ void compile_op(u32 opcode)
 
 int interp_cpu_run()
 {
+	u32 opcode = read32(cpu.PC);
+	interp_op(opcode);
+	return 1;
 }
 
 

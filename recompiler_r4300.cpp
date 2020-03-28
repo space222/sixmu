@@ -129,7 +129,7 @@ int cpu_run()
 
 	if( iter == blocks_by_addr.end() )
 	{
-		BB = recompile_at(cpu.PC&~3);
+		BB = recompile_at(cpu.PC);
 		blocks_by_addr.insert(std::make_pair(maskedpc, BB));
 
 		blocks_by_page[maskedpc>>12].push_back(BB);

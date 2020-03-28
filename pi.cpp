@@ -46,7 +46,10 @@ void pi_reg_write32(u32 addr, u32 val)
 			invalidate_page(i>>12);
 		}
 		
+		return;
 	}
+
+	pi_regs[addr] &= 0xff;
 	
 	return;
 }

@@ -32,7 +32,7 @@ u16 read_rom16(u32 addr)
 
 u32 read_rom32(u32 addr)
 {
-	addr &= 0x00FFFFFC;
+	addr &= 0x0FFFFFFC;
 
 	if( addr >= rom_size ) return 0xffffffff;
 
@@ -119,8 +119,8 @@ u32 read32(u32 addr)
 
 		if( addr >= 0x1FC00000 )
 		{
-			if( (addr&0x7fc) >= 0x7c0 )
-				printf("PIF Read @%x = %x\n", addr, __builtin_bswap32(*(u32*)(PIF+(addr&0x7fc))));
+			//if( (addr&0x7fc) >= 0x7c0 )
+			//	printf("PIF Read @%x = %x\n", addr, __builtin_bswap32(*(u32*)(PIF+(addr&0x7fc))));
 			if( (addr&0x7fc) == 0x7e4 ) PIF[0x7ff] = 0x80;
 			return  __builtin_bswap32(*(u32*)(PIF+(addr&0x7fc)));
 		}
@@ -148,7 +148,6 @@ u16 read16(u32 addr)
 
 		if( addr >= 0x1FC00000 ) 
 		{
-			//todo: there's something that when read alters a byte elsewhere on boot
 			return  __builtin_bswap16(*(u16*)(PIF+(addr&0x7fe)));
 		}
 	} else {
@@ -176,7 +175,6 @@ u8 read8(u32 addr)
 
 		if( addr >= 0x1FC00000 ) 
 		{
-			//todo: there's something that when read alters a byte elsewhere on boot
 			return PIF[addr&0x7ff];
 		}
 	} else {
@@ -208,7 +206,6 @@ void write8(u32 addr, u8 val)
 
 		else if( addr >= 0x1FC00000 ) 
 		{
-			//todo: there's something that when read alters a byte elsewhere on boot
 			PIF[addr&0x7ff] = val;
 		}
 	} else {
@@ -241,7 +238,6 @@ void write16(u32 addr, u16 val)
 
 		else if( addr >= 0x1FC00000 ) 
 		{
-			//todo: there's something that when read alters a byte elsewhere on boot
 			*(u16*)(PIF+(addr&0x7fe)) = val;
 		}
 	} else {
@@ -281,7 +277,7 @@ void write32(u32 addr, u32 val)
 
 		else if( addr >= 0x1FC00000 ) 
 		{
-			printf("PIF Write! %x to %x\n", val, addr);
+			//printf("PIF Write! %x to %x\n", val, addr);
 			*(u32*)(PIF+(addr&0x7fc)) = __builtin_bswap32(val);
 		}
 	} else {
@@ -316,7 +312,6 @@ void write64(u32 addr, u64 val)
 
 		else if( addr >= 0x1FC00000 ) 
 		{
-			//todo: there's something that when read alters a byte elsewhere on boot
 			*(u64*)(PIF+(addr&0x7f8)) = val;
 		}
 	} else {

@@ -326,7 +326,7 @@ bool c_j(u32 opcode, BasicBlock* BB, std::string& func)
 		exit(1);
 	}
 
-	func += fmt::format("return {0:#x};\n", target);
+	func += fmt::format("return {0:#x}; /*J*/\n", target);
 
 	return true;
 }
@@ -335,15 +335,15 @@ bool c_jal(u32 opcode, BasicBlock* BB, std::string& func)
 {
 	BB->end_addr += 4;
 
-	opcode = (opcode<<2)&0x0FFFFFFF;
-	opcode |= BB->end_addr & 0xF0000000;
+	u32 target = (opcode&0x03FFFFFF)<<2;
+	target |= BB->end_addr & 0xF0000000;
 
 	func += fmt::format("R[31] =(signed long long)(signed int) {0:#x};\n", BB->end_addr+4);
 
 	u32 delay_slot = read32(BB->end_addr);
 	compile_op(delay_slot, BB, func);
 
-	func += fmt::format("return {0:#x};\n", opcode);
+	func += fmt::format("return {0:#x}; /*JAL*/\n", target);
 	return true;
 }
 
@@ -363,7 +363,7 @@ bool c_jalr(u32 opcode, BasicBlock* BB, std::string& func)
 	u32 delay_slot = read32(BB->end_addr);
 	compile_op(delay_slot, BB, func);
 
-	func += "return rtemp;\n";
+	func += "return rtemp; /*JALR*/\n";
 	return true;
 }
 
@@ -378,7 +378,7 @@ bool c_jr(u32 opcode, BasicBlock* BB, std::string& func)
 	u32 delay_slot = read32(BB->end_addr);
 	compile_op(delay_slot, BB, func);
 
-	func += "return rtemp;\n";
+	func += "return rtemp; /*JR*/\n";
 	return true;
 }
 
