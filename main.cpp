@@ -29,22 +29,18 @@ int main(int argc, char** args)
 {
 	bool emupif = true;
 
-	if( argc < 2 )
-	{
-		puts("Usage: sixmu file.n64");
-		return 1;
-	}
-
-	cxxopts::Options options("Sixmu", "N64 Emulator");
+	cxxopts::Options options("Sixmu", "Sixmu, the N64 Emulator");
 	options.add_options()
-		("d", "Bypass PIF/Bootcode (programs using libultra will fail)")
+		("b,bypass", "Bypass PIF/Bootcode (programs using libultra will fail)")
+		("d,debug", "Activate debugger (unimplemented, will require interpreter)")
 		("i,interpret", "Use the interpreter instead of dynarec")
+		("l,lle", "Use the RSP interpreter even if a libultra task is detected")
 		("f,file", "ROM to emulate", cxxopts::value<std::string>())
 			;
-	options.parse_positional({"f"});
+	options.parse_positional({"file"});
 
 	auto result = options.parse(argc, args);
-	if( result.count("d") )
+	if( result.count("b") )
 	{
 		emupif = false;
 	}
@@ -52,7 +48,7 @@ int main(int argc, char** args)
 	{
 		UsingInterpreter = true;
 	}
-	if( ! result.count("f") )
+	if( !result.count("f") )
 	{
 		std::cout << options.help() << std::endl;
 		return 0;

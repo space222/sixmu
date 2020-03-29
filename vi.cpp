@@ -88,7 +88,7 @@ bool vi_update(int cpu_cycles)
 		{
 			vi_screen = SDL_CreateRGBSurface(0, last_width, last_height, 32, 0xff, 0xff00, 0xff0000, 0xff000000);// 0xff000000, 0xff0000, 0xff00, 0xff);
 		} else {
-			vi_screen = SDL_CreateRGBSurface(0, last_width, last_height, 16, 0x7c00, 0x03e0, 0x001F, 0x8000);
+			vi_screen = SDL_CreateRGBSurface(0, last_width, last_height, 16, 0xF800, 0x07C0, 0x003E, 1);
 		}
 
 		printf("VI_V_START: start = %i, end = %i\n", vi_regs[10]>>16, vi_regs[10]&0x3FF);
