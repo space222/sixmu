@@ -28,6 +28,13 @@ struct regs
 
 	u32 PC;
 };
+
+struct rspregs
+{
+	u32 R[32];
+	//todo: VU regs
+	u32 PC;
+};
 #pragma pack(pop)
 
 struct BasicBlock

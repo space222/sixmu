@@ -117,7 +117,7 @@ int main(int argc, char** args)
 
 	SDL_Init(SDL_INIT_VIDEO|SDL_INIT_AUDIO);
 
-	SDL_Window* MainWindow = SDL_CreateWindow("Sixmu", 0, 0, 1200,720, 0); //SDL_WINDOW_OPENGL
+	SDL_Window* MainWindow = SDL_CreateWindow("Sixmu", 0, 0, 1200,720, SDL_WINDOW_OPENGL);
 	MainWindowSurf = SDL_GetWindowSurface(MainWindow);
 
 	cpu.R[0] = 0;

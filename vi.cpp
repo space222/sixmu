@@ -79,7 +79,6 @@ bool vi_update(int cpu_cycles)
 	if( last_format != (vi_regs[0]&3) )
 	{
 		last_format = (vi_regs[0] & 3);
-
 		last_width = vi_regs[2];
 		last_height = (last_width == 320) ? 240 : 480;
 
@@ -91,6 +90,8 @@ bool vi_update(int cpu_cycles)
 		} else {
 			vi_screen = SDL_CreateRGBSurface(0, last_width, last_height, 16, 0x7c00, 0x03e0, 0x001F, 0x8000);
 		}
+
+		printf("VI_V_START: start = %i, end = %i\n", vi_regs[10]>>16, vi_regs[10]&0x3FF);
 
 		SDL_SetSurfaceBlendMode(vi_screen, SDL_BLENDMODE_NONE);
 
