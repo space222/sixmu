@@ -2,21 +2,30 @@
 sixmu todo/task list
 ----------------------
 
-1. SI/PIF DMA and Input
+0. Debugger based on Dear IMGUI?
+1. Interpreter FPU
+2. SI/PIF DMA and Input
 	- SI/PIF is incredibly complex. Just getting the LaC-doc type input going for now.
-2. Actual Interrupts?
-	- probably not working right, need to rewrite system update and reread vr4300 docs
-3. invalidating dynarec code on RAM writes and cart DMA.
-	- invalidation only supports DRAM writes
-	- haven't written invalidation for cart DMA, which will just out any pages it touches, should be easy(ish)
-4. Figure out why the recompiler goes nuts for certain values of the PIFseed @0x7E4.
+3. HLE - print out the display list for gfx/audio tasks and see how much I can implement
+		- it's very motivational to actually see things on the screen, so even 
+			a glitchy Mario head would be basically a personal victory.
+
+--------------------------
+Recompiler todo/task list
+--------------------------
+
+1. give the invalidator another look through
+	- as far as I can at the moment, it should be working, but clearly has different
+	  and poorer results than the interpreter
+2. see if the recomiler is still going nuts and crashing with now-probably-currect values in PIFseed @0x7E4.
 	- will take tracing the beginning of the PIF, matching the recomp output, and figuring out which instruction
 	  is failing if any. Somewhere there's still memory corruption / stack overflow if ram to be compiled is 
 	  full of garbage jumps.
-5. Figure out why the planet console demo will run sometimes, but crash on boot other times.
-	- it immediately jumps to beyond 0xB0000000. Running from cart? only works sometimes... huh.
+3. Figure out why the planet console demo will run sometimes, but crash on boot other times.
+	- it immediately jumps to beyond 0xB0000000. It might be trying to run from the cart, I don't know
+		if that's supposed to be possible, the recompiler shouldn't even be working for that.
 	- don't think it is related to 4, but possible
-6. FPU instructions - still need the non-easy comparisons, anything unordered or "signaled", etc
+4. FPU instructions - still need the non-easy comparisons, anything unordered or "signaled", etc
 
 -------------------
 Other Impl. Notes

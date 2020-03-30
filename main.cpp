@@ -79,7 +79,7 @@ int main(int argc, char** args)
 	//for(int i = 0; i < 0x800000; ++i) DRAM[i] = 0xff;
 
 	u32 sum = 0;
-	for(int i = 0x40; i < 0x1000; ++i) sum += ROM[i];
+	for(int i = 0x40; i < 0x1000; i++) sum += ROM[i];
 	printf("Bootcode simple sum = %x\n", sum);
 
 	if( emupif )
@@ -109,8 +109,6 @@ int main(int argc, char** args)
 		memcpy(DRAM+entry, ROM+0x1000, (0x100000 > rom_size-0x1000) ? rom_size-0x1000 : 0x100000);
 	}
 
-	
-
 	SDL_Init(SDL_INIT_VIDEO|SDL_INIT_AUDIO);
 
 	SDL_Window* MainWindow = SDL_CreateWindow("Sixmu", 0, 0, 1200,720, SDL_WINDOW_OPENGL);
@@ -131,8 +129,14 @@ int main(int argc, char** args)
 	u32 bootcheck = 0;
 	switch( sum )
 	{
-	case 0x371cc: bootcheck = 0x2853f; break;
-	default: bootcheck = 0x3f3f; break;
+	case 0x33a27: bootcheck = 0x3f3f; break; 	 //2 CIC_6101/TWINE
+	case 0x3421e: bootcheck = 0x3f3f; break;	 //2 CIC_6101/Starfox
+	case 0x34044: bootcheck = 0x3f3f; break;	 //6 CIC_6102/Mario
+	case 0x357d0: bootcheck = 0x783f; break;        //2 CIC_6103/Banjo
+	case 0x47a81: bootcheck = 0x913f; break;        //2 CIC_6105/Zelda
+	case 0x371cc: bootcheck = 0x853f; break; 	 //2 CIC_6106/F-Zero
+	case 0x343c9: // CIC_6106 ???
+	default: bootcheck = 0x3f3f; break;  //2
 	}
 
 	*(u32*)(PIF + 0x7E4) = __builtin_bswap32(bootcheck);

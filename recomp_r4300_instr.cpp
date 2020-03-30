@@ -491,7 +491,7 @@ bool c_andi(u32 opcode, BasicBlock* BB, std::string& func)
 	OPCODE_PARTS;
 	if( rt )
 	{
-		func += fmt::format("R[{0}] = R[{1}] & {2:#x};\n", rt, rs, (u16)offset);
+		func += fmt::format("R[{0}] = R[{1}] & {2:#x};\n", rt, rs, (u32)(u16)offset);
 	}
 	return false;
 }
@@ -501,7 +501,7 @@ bool c_ori(u32 opcode, BasicBlock* BB, std::string& func)
 	OPCODE_PARTS;
 	if( rt )
 	{
-		func += fmt::format("R[{0}] = R[{1}] | {2:#x};\n", rt, rs, (u16)offset);
+		func += fmt::format("R[{0}] = R[{1}] | {2:#x};\n", rt, rs, (u32)(u16)offset);
 	}
 	return false;
 }
@@ -511,7 +511,7 @@ bool c_xori(u32 opcode, BasicBlock* BB, std::string& func)
 	OPCODE_PARTS;
 	if( rt )
 	{
-		func += fmt::format("R[{0}] = R[{1}] ^ {2:#x};\n", rt, rs, (u16)offset);
+		func += fmt::format("R[{0}] = R[{1}] ^ {2:#x};\n", rt, rs, (u32)(u16)offset);
 	}
 	return false;
 }
