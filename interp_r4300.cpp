@@ -1,10 +1,12 @@
 #include <string>
+#include <cstring>
 #include <cstdlib>
+#include <cmath>
 #include "types.h"
 
 extern regs cpu;
 
-#define FPU_PARTS  int ft = 32+((opcode>>16)&0x1F); int fs = 32+((opcode>>11)&0x1F); int fd = 32+((opcode>>6)&0x1F); int mop = opcode&0x3F
+#define FPU_PARTS  int ft = ((opcode>>16)&0x1F); int fs = ((opcode>>11)&0x1F); int fd = ((opcode>>6)&0x1F); int mop = opcode&0x3F
 #define SPECIAL_PARTS int rs = (opcode>>21)&0x1F; int rt = (opcode>>16)&0x1F; int rd = (opcode>>11)&0x1F
 #define OPCODE_PARTS  int rs = (opcode>>21)&0x1F; int rt = (opcode>>16)&0x1F; u16 offset = (opcode&0xFFFF)
 #define REGIMM_PARTS  int rs = (opcode>>21)&0x1F; u16 offset = (opcode&0xFFFF);
@@ -885,48 +887,68 @@ void interp_cop1S(u32 opcode)
 	switch( mop )
 	{
 	case 0: //add.s
+		*(float*)(cpu.FR+fd) = *(float*)(cpu.FR+fs) + *(float*)(cpu.FR+ft);
 		break;
 	case 1: //sub.s
+		*(float*)(cpu.FR+fd) = *(float*)(cpu.FR+fs) - *(float*)(cpu.FR+ft);
 		break;
 	case 2: //mul.s
+		*(float*)(cpu.FR+fd) = *(float*)(cpu.FR+fs) * *(float*)(cpu.FR+ft);
 		break;
 	case 3: //div.s
+		*(float*)(cpu.FR+fd) = *(float*)(cpu.FR+fs) / *(float*)(cpu.FR+ft);
 		break;
 	case 4: //sqrt.s
+		*(float*)(cpu.FR+fd) = sqrt( *(float*)(cpu.FR+fs) );
 		break;
 	case 5: //abs.s
+		*(u32*)(cpu.FR+fd) = (*(u32*)(cpu.FR+fs)) & ~BIT(31);
 		break;
 	case 6: //mov.s
+		*(float*)(cpu.FR+fd) = ( *(float*)(cpu.FR+fs) );
 		break;
 	case 7: //neg.s
+		*(float*)(cpu.FR+fd) = -( *(float*)(cpu.FR+fs) );
 		break;
 	case 8: //round.l.s
+		cpu.FR[fd] = llround( *(float*)(cpu.FR+fs) );
 		break;
 	case 9: //trunc.l.s
+		cpu.FR[fd] = trunc( *(float*)(cpu.FR+fs) );
 		break;
 	case 10: //ceil.l.s
+		cpu.FR[fd] = ceil( *(float*)(cpu.FR+fs) );
 		break;
 	case 11: //floor.l.s
+		cpu.FR[fd] = floor( *(float*)(cpu.FR+fs) );
 		break;
 	case 12: //round.w.s
+		cpu.FR[fd] =(int) llround( *(float*)(cpu.FR+fs) );
 		break;
 	case 13: //trunc.w.s
+		cpu.FR[fd] =(int) trunc( *(float*)(cpu.FR+fs) );
 		break;
 	case 14: //ceil.w.s
+		cpu.FR[fd] =(int) ceil( *(float*)(cpu.FR+fs) );
 		break;
 	case 15: //floor.w.s
+		cpu.FR[fd] =(int) floor( *(float*)(cpu.FR+fs) );
 		break;
 	case 33: //cvt.d.s
+		*(double*)(cpu.FR+fd) =(double)  ( *(float*)(cpu.FR+fs) );
 		break;
 	case 36: //cvt.w.s
+		cpu.FR[fd] =(int)  ( *(float*)(cpu.FR+fs) );
 		break;
 	case 37: //cvt.l.s
+		cpu.FR[fd] =(s64)  ( *(float*)(cpu.FR+fs) );
 		break;
 	case 48: //c.f.d
 		break;
 	case 49: //c.un.d
 		break;
 	case 50: //c.eq.d
+		cpu.FC31 = (*(float*)(cpu.FR+fs) == *(float*)(cpu.FR+ft))<<23;
 		break;
 	case 51: //c.ueq.d
 		break;
@@ -945,14 +967,16 @@ void interp_cop1S(u32 opcode)
 	case 58: //c.seq.d
 		break;
 	case 59: //c.ngl.d
+		cpu.FC31 = (*(float*)(cpu.FR+fs) == *(float*)(cpu.FR+ft))<<23;
 		break;
 	case 60: //c.lt.d
 	case 61: //c.nge.d
+		cpu.FC31 = (*(float*)(cpu.FR+fs) < *(float*)(cpu.FR+ft))<<23;
 		break;
 	case 62: //c.le.d
 	case 63: //c.ngt.d
+		cpu.FC31 = (*(float*)(cpu.FR+fs) <= *(float*)(cpu.FR+ft))<<23;
 		break;
-
 	}
 	return;
 }
@@ -963,48 +987,68 @@ void interp_cop1D(u32 opcode)
 	switch( mop )
 	{
 	case 0: //add.d
+		*(double*)(cpu.FR+fd) = *(double*)(cpu.FR+fs) + *(double*)(cpu.FR+ft);
 		break;
 	case 1: //sub.d
+		*(double*)(cpu.FR+fd) = *(double*)(cpu.FR+fs) - *(double*)(cpu.FR+ft);
 		break;
 	case 2: //mul.d
+		*(double*)(cpu.FR+fd) = *(double*)(cpu.FR+fs) * *(double*)(cpu.FR+ft);
 		break;
 	case 3: //div.d
+		*(double*)(cpu.FR+fd) = *(double*)(cpu.FR+fs) / *(double*)(cpu.FR+ft);
 		break;
 	case 4: //sqrt.d
+		*(double*)(cpu.FR+fd) = sqrt( *(double*)(cpu.FR+fs) );
 		break;
 	case 5: //abs.d
+		*(u64*)(cpu.FR+fd) = ( *(u64*)(cpu.FR+fs) ) & ~BIT(63);
 		break;
 	case 6: //mov.d
+		*(double*)(cpu.FR+fd) = ( *(double*)(cpu.FR+fs) );
 		break;
 	case 7: //neg.d
+		*(double*)(cpu.FR+fd) = -( *(double*)(cpu.FR+fs) );
 		break;
 	case 8: //round.l.d
+		cpu.FR[fd] = llround( *(double*)(cpu.FR+fs) );
 		break;
 	case 9: //trunc.l.d
+		cpu.FR[fd] = trunc( *(double*)(cpu.FR+fs) );
 		break;
 	case 10: //ceil.l.d
+		cpu.FR[fd] = ceil( *(double*)(cpu.FR+fs) );
 		break;
 	case 11: //floor.l.d
+		cpu.FR[fd] = floor( *(double*)(cpu.FR+fs) );
 		break;
 	case 12: //round.w.d //what happens to upper 32bits of things?
+		cpu.FR[fd] =(int) llround( *(double*)(cpu.FR+fs) );
 		break;
 	case 13: //trunc.w.d
+		cpu.FR[fd] =(int) trunc( *(double*)(cpu.FR+fs) );
 		break;
 	case 14: //ceil.w.d
+		cpu.FR[fd] =(int) ceil( *(double*)(cpu.FR+fs) );
 		break;
 	case 15: //floor.w.d
+		cpu.FR[fd] =(int) floor( *(double*)(cpu.FR+fs) );
 		break;
 	case 32: //cvt.s.d
+		*(float*)(&cpu.FR[fd]) =(float) ( *(double*)(cpu.FR+fs) );
 		break;
 	case 36: //cvt.w.d
+		*(s32*)(&cpu.FR[fd]) =(s32) ( *(double*)(cpu.FR+fs) );
 		break;
 	case 37: //cvt.l.d
+		cpu.FR[fd] =(s64) ( *(double*)(cpu.FR+fs) );
 		break;
 	case 48: //c.f.d
 		break;
 	case 49: //c.un.d
 		break;
 	case 50: //c.eq.d
+		cpu.FC31 = (*(double*)(cpu.FR+fs) == *(double*)(cpu.FR+ft))<<23;
 		break;
 	case 51: //c.ueq.d
 		break;
@@ -1023,12 +1067,15 @@ void interp_cop1D(u32 opcode)
 	case 58: //c.seq.d
 		break;
 	case 59: //c.ngl.d
+		cpu.FC31 = (*(double*)(cpu.FR+fs) == *(double*)(cpu.FR+ft))<<23;
 		break;
 	case 60: //c.lt.d
 	case 61: //c.nge.d
+		cpu.FC31 = (*(double*)(cpu.FR+fs) < *(double*)(cpu.FR+ft))<<23;
 		break;
 	case 62: //c.le.d
 	case 63: //c.ngt.d
+		cpu.FC31 = (*(double*)(cpu.FR+fs) <= *(double*)(cpu.FR+ft))<<23;
 		break;
 
 	}
@@ -1041,8 +1088,10 @@ void interp_cop1W(u32 opcode)
 	switch( mop )
 	{
 	case 32: //cvt.s.w
+		*(float*)(cpu.FR+fd) = (float) *(int*)(cpu.FR+fs);
 		break;
 	case 33: //cvt.d.w
+		*(double*)(cpu.FR+fd) = (double) *(int*)(cpu.FR+fs);
 		break;
 	}
 	return;
@@ -1054,8 +1103,10 @@ void interp_cop1L(u32 opcode)
 	switch( mop )
 	{
 	case 32: //cvt.s.l
+		*(float*)(cpu.FR+fd) = (float)  (s64)cpu.FR[fs];
 		break;
 	case 33: //cvt.d.l
+		*(double*)(cpu.FR+fd) = (double)(s64)cpu.FR[fs];
 		break;
 	}
 	return;
@@ -1066,16 +1117,39 @@ void interp_bc1(u32 opcode)
 	u32 subop = (opcode>>16)&0x1F;
 	s32 offset =(s32) (s16)(opcode&0xffff);
 	offset <<= 2;
-
+	
 	switch( subop )
 	{
 	case 0: //BC1F branch on cop1 false
+		if( !(cpu.FC31&BIT(23)) )
+		{
+			branch_target = (cpu.PC+4) + offset;
+			branch_delay = 2;
+		}
 		break;
 	case 1: //BC1T
-		break;
+		if( (cpu.FC31&BIT(23)) )
+		{
+			branch_target = (cpu.PC+4) + offset;
+			branch_delay = 2;
+		}		break;
 	case 2: //BC1FL branch on cop1 false likely
+		if( !(cpu.FC31&BIT(23)) )
+		{
+			branch_target = (cpu.PC+4) + offset;
+			branch_delay = 2;
+		} else {
+			cpu.PC += 4;
+		}
 		break;
 	case 3: //BC1TL
+		if( !(cpu.FC31&BIT(23)) )
+		{
+			branch_target = (cpu.PC+4) + offset;
+			branch_delay = 2;
+		} else {
+			cpu.PC += 4;
+		}
 		break;
 	}
 
@@ -1133,24 +1207,36 @@ void interp_cop2(u32 opcode)
 void interp_ldc1(u32 opcode)
 {
 	OPCODE_PARTS;
+	u32 addr = se16to32(offset) + (u32)cpu.R[rs];
+	//todo: tlb
+	cpu.FR[rt] = read64(addr&~7);
 	return;
 }
 
 void interp_lwc1(u32 opcode)
 {
 	OPCODE_PARTS;
+	u32 addr = se16to32(offset) + (u32)cpu.R[rs];
+	//todo: tlb
+	cpu.FR[rt] = read32(addr&~3);
 	return;
 }
 
 void interp_swc1(u32 opcode)
 {
 	OPCODE_PARTS;
+	u32 addr = se16to32(offset) + (u32)cpu.R[rs];
+	//todo: tlb
+	write32(addr&~3, cpu.FR[rt]);
 	return;
 }
 
 void interp_sdc1(u32 opcode)
 {
 	OPCODE_PARTS;
+	u32 addr = se16to32(offset) + (u32)cpu.R[rs];
+	//todo: tlb
+	write64(addr&~7, cpu.FR[rt]);
 	return;
 }
 
@@ -1341,6 +1427,7 @@ void interp_op(u32 opcode)
 int interp_cpu_run()
 {
 	u32 opcode = read32(cpu.PC);
+	cpu.R[0] = 0;
 	interp_op(opcode);
 	cpu.PC += 4;
 	if( branch_delay > 0 )

@@ -3,10 +3,9 @@ sixmu todo/task list
 ----------------------
 
 0. Debugger based on Dear IMGUI?
-1. Interpreter FPU
-2. SI/PIF DMA and Input
+1. SI/PIF DMA and Input
 	- SI/PIF is incredibly complex. Just getting the LaC-doc type input going for now.
-3. HLE - print out the display list for gfx/audio tasks and see how much I can implement
+2. HLE - print out the display list for gfx/audio tasks and see how much I can implement
 		- it's very motivational to actually see things on the screen, so even 
 			a glitchy Mario head would be basically a personal victory.
 
@@ -18,6 +17,8 @@ Recompiler todo/task list
 	- as far as I can at the moment, it should be working, but clearly has different
 	  and poorer results than the interpreter
 2. see if the recomiler is still going nuts and crashing with now-probably-currect values in PIFseed @0x7E4.
+	- I don't think I changed anything, but (apparently) correct values get thru the bootcode in both the 
+		interpreter and the recomp now, I think
 	- will take tracing the beginning of the PIF, matching the recomp output, and figuring out which instruction
 	  is failing if any. Somewhere there's still memory corruption / stack overflow if ram to be compiled is 
 	  full of garbage jumps.
@@ -78,13 +79,11 @@ more fancy (like 640x240) or scaling tricks or non-resolution sized framebuffer 
 For now, I'm only supporting 16bit-swapped and already-correct roms. I've read
 that 32bit-swapped is rare. I don't know how true that is, but I haven't encountered any so far.
 
-I'm going to ignore the RSP for the foreseeable future, as even a few years ago
-when I got an interpreter going as much as I could, I still couldn't get roms
-that use libultra to boot in the first place (iirc something got to the point
-of trying to get the RSP to mix audio, but just one game).
-	- Might actually start implementing a recompiler for it, but only scalar instructions
-		if the vector unit gets done, it'll have to be regular C only, TCC doesn't support
-		any SSE instrinsics.
+If I ever start a recompiler for the RSP, it'll need to be plain C, libtcc doesn't support SSE
+intrinsics. The alternative would be to output bytes in inline asm or just use a different
+JIT library(/write one). 
+
+The RSP interpreter passes a few krom/PeterLemon test ROMs. Would rather HLE things though.
 
 ---------------
 Dynarec notes
@@ -93,7 +92,7 @@ Dynarec notes
 For certain values of PIFseed@7e4, the recompiler goes nuts and crashes when the bootcode
 gets to the point of running in IMEM.
 
-At first, I'm going all dynarec. There's no interpreter here.
+In Sixmu, the recomp came first. I wrote the interpreter for debugging purposes.
 
 Basic blocks only with no internal jumping, and not over 
 ~250 instructions. Interrupts are checked only between block executions.
@@ -105,7 +104,8 @@ DDIV instructions are causing "floating point exception" crashes. Apparently thi
 when the result won't fit in the destination register bitsize. This shouldn't be
 possible with C code. Either there's a bug in libtcc, or I'm doing something horribly
 wrong/UB. I've gotten things to the point that only DDIV crashes, by using inline assembly.
-All other PeterLemon CPU (and CP1) instruction tests pass.
+All other PeterLemon CPU (and CP1) instruction tests pass. Oddly enough DDIV crashes 
+in the interpreter too, is it just not possible to be carefree while doing max-size division?
 
 A libtcc state can't be used more than once (?). Need to create/destroy tcc_state object
 for every BasicBlock compiled.
@@ -113,6 +113,11 @@ for every BasicBlock compiled.
 -----------------
 RSP Stuff
 -----------------
+
+I've actually started a RSP interpreter, SU is done. VU has a few instructions (mostly
+bitwise, although add/sub pass the krom tests). I'm sure my load/store needs work,
+endian issues all over the place. VMOV doesn't pass the tests, either because of endian
+issues or I don't understand the accumulator well enough.
 
 Implementing the RSP Scalar Unit should be simple as that code basically already exists
 for the regular CPU, the RSP-SU is just a 32bit version. For the vector unit, non-optimal

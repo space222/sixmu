@@ -13,7 +13,7 @@ typedef int32_t  s32;
 typedef uint64_t u64;
 typedef int64_t  s64;
 
-#define BIT(a) ((1<<(a)))
+#define BIT(a) ((1ULL<<(a)))
 
 #pragma pack(push, 1)
 struct regs
@@ -32,8 +32,10 @@ struct regs
 struct rspregs
 {
 	u32 R[32];
-	//todo: VU regs
+	u8 V[32*16];
+	u64 A[8];
 	u32 PC;
+	u16 VCC, VCO, VCE;
 };
 #pragma pack(pop)
 

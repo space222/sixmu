@@ -39,7 +39,7 @@ struct rsptask {
 
 };
 
-rspregs rsp;
+extern rspregs rsp;
 u32 sp_regs[13] = {3,3,3,3,3,0};
 
 u32 last_dma_sizes[2] = {0};
@@ -64,10 +64,6 @@ void sp_run_rsp()
 	case 1: puts("SP: Running HLE Gfx Task"); break;
 	default: printf("SP: Unknown HLE Task Type %i\n", T.type); break;
 	}
-
-	
-
-
 
 	rsp_running = false;
 	sp_regs[4] = 3 | BIT(9); //signal 2? halt and broke
@@ -149,10 +145,10 @@ void sp_reg_write32(u32 addr, u32 val)
 
 		printf("SP: After write to SP_STATUS_REG, it=%x\n", sp_regs[4]);
 
-		if( (sp_regs[4]&3)==0 && !rsp_running )
-		{
-			sp_run_rsp();
-		}
+		//if( (sp_regs[4]&3)==0 && !rsp_running )
+		//{
+		//	sp_run_rsp();
+		//}
 
 		return;
 	}

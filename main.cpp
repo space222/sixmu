@@ -14,6 +14,7 @@ bool UsingInterpreter = false;
 bool load_rom(const std::string&);
 int cpu_run();
 int interp_cpu_run();
+void interp_rsp_run();
 bool system_update(int);
 void ai_update(int);
 void vi_init();
@@ -21,9 +22,11 @@ void ai_init();
 
 extern u8 PIF[0x800];
 extern regs cpu;
+extern rspregs rsp;
 extern u8* ROM;
 extern u32 rom_size;
 extern u8 DRAM[8*1024*1024];
+extern u32 sp_regs[13];
 
 int main(int argc, char** args)
 {
@@ -111,11 +114,12 @@ int main(int argc, char** args)
 
 	SDL_Init(SDL_INIT_VIDEO|SDL_INIT_AUDIO);
 
-	SDL_Window* MainWindow = SDL_CreateWindow("Sixmu", 0, 0, 1200,720, SDL_WINDOW_OPENGL);
+	SDL_Window* MainWindow = SDL_CreateWindow("Sixmu", 0, 0, 1300, 960, SDL_WINDOW_OPENGL);
 	MainWindowSurf = SDL_GetWindowSurface(MainWindow);
 
 	cpu.R[0] = 0;
 	cpu.C[CP0_Status] |= CP0_STATUS_FR;
+	rsp.VCO = rsp.VCE = rsp.VCC = 0;
 	vi_init();
 	ai_init();
 
@@ -169,6 +173,7 @@ int main(int argc, char** args)
 			int cc = 0;
 			do {
 				interp_cpu_run();
+				if( (sp_regs[4]&3) == 0 ) interp_rsp_run();
 				cc++;
 				if( cc >= 547 )
 				{

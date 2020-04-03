@@ -9,6 +9,7 @@ extern u8 DRAM[8*1024*1024];
 void ai_play_buffer(void* src, int byte_len);
 
 u32 ai_regs[5] = {0};
+extern u32 mi_regs[4];
 SDL_AudioDeviceID ai_dev;
 float abuf[0x80000];
 bool playing = false;
@@ -68,6 +69,7 @@ void ai_update(int cpu_cycles)
 		{
 			playing = false;
 			//todo: AI interrupt
+			mi_regs[2] |= 4;
 		}
 
 		if( ai_regs[1] && (ai_regs[2]&1) )
@@ -96,7 +98,7 @@ void ai_init()
 	SDL_AudioSpec want, have;
 
 	SDL_memset(&want, 0, sizeof(want)); /* or SDL_zero(want) */
-	want.freq = 10100;
+	want.freq = 22100;
 	want.format = AUDIO_S16MSB; //AUDIO_F32;
 	want.channels = 2;
 	want.samples = 4096;
