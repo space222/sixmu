@@ -511,18 +511,18 @@ interpptr rsp_cop2_ops[] = {
 	rsp_undef_opcode, rsp_undef_opcode, rsp_undef_opcode, rsp_undef_opcode, rsp_undef_opcode, rsp_undef_opcode, rsp_undef_opcode, rsp_undef_opcode
 };
 
-#define VECPARTS int J = 0; \
+#define VECPARTS int J = 0; int S = i^7; \
 		if( e == 0 ) {J = S;} \
 		else if( (e&0xE) == 2 ) { J = (e&1)+(S&0xE); } \
 		else if( (e&0xC) == 4 ) { J = (e&3)+(S&0xC); } \
-		else if( e&8 )  J = (e&7)
+		else if( e&8 )  J = (e&7);
 
 
 void vnor(u32 opcode)
 {
 	COP2_PARTS;
 
-	for(int S = 0; S < 8; ++S)
+	for(int i = 0; i < 8; ++i)
 	{
 		VECPARTS;
 		u16 res = ~( *(u16*)(rsp.V+(vs*16)+(S<<1)) | *(u16*)(rsp.V+(vt*16)+(J<<1)) );
@@ -537,7 +537,7 @@ void vxor(u32 opcode)
 {
 	COP2_PARTS;
 
-	for(int S = 0; S < 8; ++S)
+	for(int i = 0; i < 8; ++i)
 	{
 		VECPARTS;
 		u16 res = *(u16*)(rsp.V+(vs*16)+(S<<1)) ^ *(u16*)(rsp.V+(vt*16)+(J<<1));
@@ -552,7 +552,7 @@ void vor(u32 opcode)
 {
 	COP2_PARTS;
 
-	for(int S = 0; S < 8; ++S)
+	for(int i = 0; i < 8; ++i)
 	{
 		VECPARTS;
 		u16 res = *(u16*)(rsp.V+(vs*16)+(S<<1)) | *(u16*)(rsp.V+(vt*16)+(J<<1));
@@ -567,7 +567,7 @@ void vand(u32 opcode)
 {
 	COP2_PARTS;
 
-	for(int S = 0; S < 8; ++S)
+	for(int i = 0; i < 8; ++i)
 	{
 		VECPARTS;
 		u16 res = *(u16*)(rsp.V+(vs*16)+(S<<1)) & *(u16*)(rsp.V+(vt*16)+(J<<1));
@@ -582,7 +582,7 @@ void vnand(u32 opcode)
 {
 	COP2_PARTS;
 
-	for(int S = 0; S < 8; ++S)
+	for(int i = 0; i < 8; ++i)
 	{
 		VECPARTS;
 		u16 res = *(u16*)(rsp.V+(vs*16)+(S<<1)) & *(u16*)(rsp.V+(vt*16)+(J<<1));
@@ -598,7 +598,7 @@ void vnxor(u32 opcode)
 {
 	COP2_PARTS;
 
-	for(int S = 0; S < 8; ++S)
+	for(int i = 0; i < 8; ++i)
 	{
 		VECPARTS;
 		u16 res = ~ ( *(u16*)(rsp.V+(vs*16)+(S<<1)) ^ *(u16*)(rsp.V+(vt*16)+(J<<1)) );
@@ -613,7 +613,7 @@ void vadd(u32 opcode)
 {
 	COP2_PARTS;
 
-	for(int S = 0; S < 8; ++S)
+	for(int i = 0; i < 8; ++i)
 	{
 		VECPARTS;
 		s32 res = *(s16*)(rsp.V+(vs*16)+(S<<1));
@@ -638,19 +638,18 @@ void vaddc(u32 opcode)
 	COP2_PARTS;
 	rsp.VCO = 0;
 
-	for(int S = 0; S < 8; ++S)
+	for(int i = 0; i < 8; ++i)
 	{
 		VECPARTS;
 		u32 res = *(u16*)(rsp.V+(vs*16)+(S<<1));
 		res += *(u16*)(rsp.V+(vt*16)+(J<<1));
-		//res += (rsp.VCO>>S)&1;
 		rsp.A[S] = (rsp.A[S]&~0xffffull);
 		rsp.A[S] |= (res&0xffff);
 		
 		*(u16*)(rsp.V+(vd*16)+(S<<1)) = res&0xffff;
 		if( res&BIT(16) )
 		{
-			rsp.VCO |= BIT(S^7);
+			rsp.VCO |= BIT(i);
 		}
 	}
 
@@ -661,7 +660,7 @@ void vsub(u32 opcode)
 {
 	COP2_PARTS;
 
-	for(int S = 0; S < 8; ++S)
+	for(int i = 0; i < 8; ++i)
 	{
 		VECPARTS;
 		s32 res = *(s16*)(rsp.V+(vs*16)+(S<<1));
@@ -686,7 +685,7 @@ void vsubc(u32 opcode)
 	COP2_PARTS;
 	rsp.VCO = 0;
 
-	for(int S = 0; S < 8; ++S)
+	for(int i = 0; i < 8; ++i)
 	{
 		VECPARTS;
 		u32 res = *(u16*)(rsp.V+(vs*16)+(S<<1));
@@ -700,9 +699,9 @@ void vsubc(u32 opcode)
 
 		if( res & BIT(16) )
 		{
-			rsp.VCO |= BIT(S^7)|BIT(((S^7)+8));
+			rsp.VCO |= BIT(i)|BIT(i+8);
 		} else if( (res != 0) && !(res&BIT(16)) ) {
-			rsp.VCO |= BIT(((S^7)+8));
+			rsp.VCO |= BIT(i+8);
 		}
 	}
 
@@ -712,18 +711,18 @@ void vsubc(u32 opcode)
 void vmov(u32 opcode)
 {
 	COP2_PARTS;
-	e ^= 7;
 	vs ^= 7;
+	e ^= 7;
 	u16 res = *(u16*)(rsp.V+(vt*16)+(e<<1));
 	*(u16*)(rsp.V+(vd*16)+(vs<<1)) = res;
-	rsp.A[e] = (rsp.A[e]&~0xffffull) | (u64)res;
+	rsp.A[vs] = (rsp.A[vs]&~0xffffull) | (u64)res;
 	return;
 }
 
 void vmrg(u32 opcode)
 {
 	COP2_PARTS;
-	for(int S = 0; S < 8; ++S)
+	for(int i = 0; i < 8; ++i)
 	{
 		VECPARTS;
 		u16 res;
@@ -744,8 +743,9 @@ void vsar(u32 opcode)
 {
 	COP2_PARTS;
 	//printf("VSAR e = %i\n", e);
-	for(int S = 0; S < 8; ++S)
+	for(int i = 0; i < 8; ++i)
 	{
+		int S = i;
 		if( e == 8 )
 		{
 			*(u16*)(rsp.V+(vd*16)+(S<<1)) = rsp.A[S]>>32;
@@ -771,7 +771,7 @@ void vabs(u32 opcode)
 
 	printf("VABS, opcode = %x, e = %x\n", opcode, e);
 
-	for(int S = 0; S < 8; ++S)
+	for(int i = 0; i < 8; ++i)
 	{
 		VECPARTS;
 		
@@ -791,6 +791,260 @@ void vabs(u32 opcode)
 	return;
 }
 
+void vmulf(u32 opcode)
+{
+	COP2_PARTS;
+
+	for(int i = 0; i < 8; ++i)
+	{
+		VECPARTS;
+		
+		s32 res = (s32)*(s16*)(rsp.V+(vs*16)+(S<<1)) * (s32)*(s16*)(rsp.V+(vt*16)+(J<<1));
+		res <<= 1;
+		res += 0x8000;
+		rsp.A[S] = (rsp.A[S]&~0xffffffffull) | res; //((u64)(u32)res << 16);
+		s32 clamp =(s32)(rsp.A[S]>>16);
+		rsp.A[S] = (rsp.A[S]&0xffffffffull) | (((u64)(-(res<0)))<<32);
+		//if( clamp > 32767 ) clamp = 32767;
+		//else if( clamp < -32768 ) clamp = -32768;
+		*(u16*)(rsp.V+(vd*16)+(S<<1)) = (u16)(u32)clamp;
+	}
+
+	return;
+}
+
+void vmulu(u32 opcode)
+{
+	COP2_PARTS;
+
+	for(int i = 0; i < 8; ++i)
+	{
+		VECPARTS;
+
+		s32 res = (s32)*(s16*)(rsp.V+(vs*16)+(S<<1)) * (s32)*(s16*)(rsp.V+(vt*16)+(J<<1));
+		res <<= 1;
+		res += 0x8000;
+		rsp.A[S] = (rsp.A[S]&~0xffffffffull) | res;
+		s32 clamp =(s32)(rsp.A[S]>>16);
+		rsp.A[S] = (rsp.A[S]&0xffffffffull) | (((u64)(-(res<0)))<<32);
+		//if( clamp > 32767 ) clamp = 32767;
+		//else if( clamp < -32768 ) clamp = -32768;
+		*(u16*)(rsp.V+(vd*16)+(S<<1)) = (u16)(u32)clamp;
+	}
+
+	return;
+}
+
+void vmacf(u32 opcode)
+{
+	COP2_PARTS;
+
+	for(int i = 0; i < 8; ++i)
+	{
+		VECPARTS;
+		
+		s32 VS = *(s16*)(rsp.V+(vs*16)+(S<<1));
+		s32 VT = *(s16*)(rsp.V+(vt*16)+(J<<1));
+
+		s32 prod = VS * VT;
+		prod <<= 1;
+		rsp.A[S] += prod;
+
+		s32 clamp =(s32)(rsp.A[S]>>16);
+		//if( clamp > 32767 ) clamp = 32767;
+		//else if( clamp < -32768 ) clamp = -32768;
+		*(u16*)(rsp.V+(vd*16)+(S<<1)) = (u16)clamp;
+	}
+
+	return;
+}
+
+void vmacu(u32 opcode)
+{
+	COP2_PARTS;
+
+	for(int i = 0; i < 8; ++i)
+	{
+		VECPARTS;
+		s32 VS = *(s16*)(rsp.V+(vs*16)+(S<<1));
+		s32 VT = *(s16*)(rsp.V+(vt*16)+(J<<1));
+
+		s64 prod = VS * VT;
+		prod <<= 1;
+		rsp.A[S] += prod;
+
+		u32 clamp =(u32)(rsp.A[S]>>16);
+		if( clamp&BIT(15) ) clamp = 0xffff;
+		//else if( clamp>>16  ) clamp = 0xffff;
+		*(u16*)(rsp.V+(vd*16)+(S<<1)) = (u16)clamp;
+	}
+
+	return;
+}
+
+void vmudn(u32 opcode)
+{
+	COP2_PARTS;
+
+	for(int i = 0; i < 8; ++i)
+	{
+		VECPARTS;
+		s32 VS = *(s16*)(rsp.V+(vs*16)+(S<<1));
+		s32 VT = *(s16*)(rsp.V+(vt*16)+(J<<1));
+
+		s32 prod = VS * VT;
+		rsp.A[S] &= ~0xffffffffull;
+		rsp.A[S] |= prod;
+	
+		s32 clamp =(s32)(rsp.A[S]);
+		//if( clamp < -32768 ) clamp = -32768;
+		//else if( clamp > 32767 ) clamp = 32767;
+		*(u16*)(rsp.V+(vd*16)+(S<<1)) = clamp;
+	}
+
+	return;
+}
+
+void vmudl(u32 opcode)
+{
+	COP2_PARTS;
+
+	for(int i = 0; i < 8; ++i)
+	{
+		VECPARTS;
+		s32 VS = *(s16*)(rsp.V+(vs*16)+(S<<1));
+		s32 VT = *(s16*)(rsp.V+(vt*16)+(J<<1));
+
+		s32 prod = VS * VT;
+		prod =(s32)(s16) (prod>>16);
+		rsp.A[S] &= ~0xffffffffull;
+		rsp.A[S] |= prod;
+	
+		s32 clamp =(s32)(rsp.A[S]);
+		//if( clamp < -32768 ) clamp = -32768;
+		//else if( clamp > 32767 ) clamp = 32767;
+		*(u16*)(rsp.V+(vd*16)+(S<<1)) = clamp;
+	}
+
+	return;
+}
+
+void vmudm(u32 opcode)
+{
+	COP2_PARTS;
+
+	for(int i = 0; i < 8; ++i)
+	{
+		VECPARTS;
+		s32 VS = *(s16*)(rsp.V+(vs*16)+(S<<1));
+		s32 VT = *(s16*)(rsp.V+(vt*16)+(J<<1));
+
+		s32 prod = VS * VT;
+		rsp.A[S] &= ~0xffffffffull;
+		rsp.A[S] |= prod;
+	
+		s32 clamp =(s32)(rsp.A[S]);
+		//if( clamp < -32768 ) clamp = -32768;
+		//else if( clamp > 32767 ) clamp = 32767;
+		*(u16*)(rsp.V+(vd*16)+(S<<1)) = clamp;
+	}
+
+	return;
+}
+
+void vmudh(u32 opcode)
+{
+	COP2_PARTS;
+
+	for(int i = 0; i < 8; ++i)
+	{
+		VECPARTS;
+		s32 VS = *(s16*)(rsp.V+(vs*16)+(S<<1));
+		s32 VT = *(s16*)(rsp.V+(vt*16)+(J<<1));
+
+		s64 prod = VS * VT;
+		rsp.A[S] &= 0xffffull;
+		rsp.A[S] |= prod<<16;
+	
+		s32 clamp =(s32)(rsp.A[S]>>16);
+		//if( clamp < -32768 ) clamp = -32768;
+		//else if( clamp > 32767 ) clamp = 32767;
+		*(u16*)(rsp.V+(vd*16)+(S<<1)) = clamp;
+	}
+
+	return;
+}
+
+void vmadl(u32 opcode)
+{
+	COP2_PARTS;
+
+	for(int i = 0; i < 8; ++i)
+	{
+		VECPARTS;
+		u32 VS = *(u16*)(rsp.V+(vs*16)+(S<<1));
+		u32 VT = *(u16*)(rsp.V+(vt*16)+(J<<1));
+
+		u32 prd = VS * VT;
+			
+		rsp.A[S] += (prd>>16);
+
+		s32 clamp =(s32)(rsp.A[S]);
+		//if( clamp < -32768 ) clamp = -32768;
+		//else if( clamp > 32767 ) clamp = 32767;
+		*(u16*)(rsp.V+(vd*16)+(S<<1)) = clamp;
+	}
+
+	return;
+}
+
+void vmadm(u32 opcode)
+{
+	COP2_PARTS;
+
+	for(int i = 0; i < 8; ++i)
+	{
+		VECPARTS;
+		s32 VS = *(s16*)(rsp.V+(vs*16)+(S<<1));
+		u64 VT = *(u16*)(rsp.V+(vt*16)+(J<<1));
+
+		s64 prd = (s64)VS * (u64)VT;
+			
+		rsp.A[S] += prd;
+
+		s32 clamp =(s32)(rsp.A[S]>>16);
+		//if( clamp < -32768 ) clamp = -32768;
+		//else if( clamp > 32767 ) clamp = 32767;
+		*(u16*)(rsp.V+(vd*16)+(S<<1)) = clamp;
+	}
+
+	return;
+}
+
+void vmadn(u32 opcode)
+{
+	COP2_PARTS;
+
+	for(int i = 0; i < 8; ++i)
+	{
+		VECPARTS;
+		s32 VS = *(s16*)(rsp.V+(vs*16)+(S<<1));
+		s32 VT = *(s16*)(rsp.V+(vt*16)+(J<<1));
+
+		s32 prd = VS * VT;
+			
+		rsp.A[S] += prd;
+
+		s32 clamp =(s32)(rsp.A[S]);
+		//if( clamp < -32768 ) clamp = -32768;
+		//else if( clamp > 32767 ) clamp = 32767;
+		*(u16*)(rsp.V+(vd*16)+(S<<1)) = clamp;
+	}
+
+	return;
+}
+
+
 void rsp_interp_cop0(u32 opcode)
 {
 	if( (opcode>>25) & 1 )
@@ -808,11 +1062,36 @@ void rsp_interp_cop2(u32 opcode)
 	{
 		switch( opcode&0x3F )
 		{
+		case 0x00: vmulf(opcode); return;
+		case 0x01: vmulu(opcode); return;
+
+
+		case 0x04: vmudl(opcode); return;
+		case 0x05: vmudm(opcode); return;
+		case 0x06: vmudn(opcode); return;
+		case 0x07: vmudh(opcode); return;
+		case 0x08: vmacf(opcode); return;
+		case 0x09: vmacu(opcode); return;
+
+
+		case 0x0C: vmadl(opcode); return;
+		case 0x0D: vmadm(opcode); return;
+		case 0x0E: vmadn(opcode); return;
+
 		case 0x10: vadd(opcode); return;
 		case 0x11: vsub(opcode); return;
+
 		case 0x13: vabs(opcode); return;
 		case 0x14: vaddc(opcode); return;
 		case 0x15: vsubc(opcode); return;
+
+
+
+
+
+
+
+
 
 		case 0x1D: vsar(opcode); return;
 

@@ -19,7 +19,7 @@ bool playing = false;
 void ai_reg_write32(u32 addr, u32 val)
 {
 	addr &= 0x1F;
-	//printf("AI Reg Write: %x to %x\n", val, addr);
+	printf("AI Reg Write: %x to %x\n", val, addr);
 	addr >>= 2;
 
 	if( addr > 4 ) return;
