@@ -89,7 +89,7 @@ void sp_reg_write32(u32 addr, u32 val)
 
 	if( addr == 2 )
 	{
-		printf("SP: DMA %i at %x to %x\n", val+1, sp_regs[1], sp_regs[0]);
+		printf("SP: DMA %i from DRAM %x to RSP %x\n", val+1, sp_regs[1], sp_regs[0]);
 		u32 start_addr = sp_regs[1]&0x7fffff;
 		u8* mem = (sp_regs[0]&0x1000) ? IMEM : DMEM;
 		mem += sp_regs[0]&0xfff;
@@ -108,6 +108,29 @@ void sp_reg_write32(u32 addr, u32 val)
 			mem += L+S;
 		}
 		return;		
+	}
+
+	if( addr == 3 )
+	{
+		printf("SP: DMA %i from RSP %x to DRAM %x\n", val+1, sp_regs[0], sp_regs[1]);
+		u32 start_addr = sp_regs[1]&0x7fffff;
+		u8* mem = (sp_regs[0]&0x1000) ? IMEM : DMEM;
+		mem += sp_regs[0]&0xfff;
+
+		u32 L = val&0xfff;
+		u32 C = (val>>12)&0xff;
+		u32 S = (val>>20);
+
+		C++; L++;
+
+		last_dma_sizes[(sp_regs[0]&0x1000)?1:0] = L;
+
+		for(int i = 0; i < C; ++i)
+		{
+			memcpy(DRAM+start_addr, mem, L);
+			mem += L+S;
+		}
+		return;	
 	}
 
 	if( addr == 4 )

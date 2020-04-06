@@ -5,6 +5,7 @@
 
 extern u32 mi_regs[4];
 extern u8 DRAM[8*1024*1024];
+extern u8 DMEM[0x1000];
 
 u32 dp_regs[8];
 
@@ -40,23 +41,32 @@ void dp_do_commands()
 	u32 start = dp_regs[2];
 	u32 end = dp_regs[1];
 
-//	printf("DP EXECUTE FROM %x TO %x\n", start, end);
+	printf("DP EXECUTE FROM %x TO %x\n", start, end);
 
 	while( start < end )
 	{
-		u64 first = __builtin_bswap64(*(u64*)(DRAM+(start&0x7FFFFF)));
+		u64 first;
+		if( dp_regs[3] & 1 )
+			first = __builtin_bswap64(*(u64*)(DMEM+(start&0x7FFFFF)));
+		else
+			first = __builtin_bswap64(*(u64*)(DRAM+(start&0x7FFFFF)));
 		u8 cmd = (first>>56)&0x3F;
 
 		switch( cmd )
 		{
+		case 0x00: // NOP
+			puts("DP CMD: NOP");
+			break;
 		case 0x3F: // Set Color Image
 			color_buffer.format = (first>>53)&7;
 			color_buffer.width = ((first>>32)&0x3FF) + 1;
 			color_buffer.pixsize = (first>>51)&3;
 			color_buffer.addr = (first & 0x7FFFFF);
+			printf("DP CMD: Set Color Image = 0x%x\n", color_buffer.addr);
 			break;
 		case 0x3E: // Set Z Image
 			zbuf_addr = (first & 0x7FFFFF);
+			printf("DP CMD: Set Z Image = 0x%x\n", zbuf_addr);
 			break;
 		case 0x2D: // Set Scissor
 			rdp_scissor.xh = (first>>44)&0xFFF;
@@ -65,19 +75,24 @@ void dp_do_commands()
 			rdp_scissor.yl = (first & 0xFFF);
 			rdp_scissor.interlace = (first>>25)&1;
 			rdp_scissor.keep_odd_line = (first>>24)&1;
+			printf("DP CMD: Set Scissor (%i,%i,%i,%i)\n", rdp_scissor.xl, rdp_scissor.yl, rdp_scissor.xh, rdp_scissor.yh);
 			break;
 		case 0x37: // Set Fill Color
 			fill_color =(u32) first;
+			printf("DP CMD: Fill Color = %x\n", fill_color);
 			break;
 		case 0x36: // Fill Rectangle
 			dp_fill_rect((first>>12)&0xFFF, first&0xFFF, (first>>44)&0xFFF, (first>>32)&0xFFF);
 			break;
 		case 0x27: // Sync Pipe
 			// sync commands are pointless to an implementation where things happen instantly
+			printf("DP CMD: Sync Pipe\n");
 			break;
 		case 0x28: // Sync Tile
+			printf("DP CMD: Sync Tile\n");
 			break;
 		case 0x29: // Sync Full
+			printf("DP CMD: Sync Full\n");
 			break;
 		case 0x38: // Set Fog Color
 			fog_color =(u32) first;
@@ -94,7 +109,11 @@ void dp_do_commands()
 			break;
 		case 0x2F: // Set Other Modes
 			dp_set_other_modes(first);
+			puts("DP CMD: Set Other Modes");
 			break;
+		default:
+			printf("DP CMD 0x%x\n", cmd);
+			break;		
 		}
 
 		start += 8;
@@ -119,7 +138,7 @@ void dp_fill_rect(u32 xh, u32 yh, u32 xl, u32 yl)
 	xl >>= 2; 
 	yl >>= 2;
 
-	//printf("DP: fill rect %i, %i, %i, %i\n", xh, yh, xl, yl);
+	printf("DP: fill rect %i, %i, %i, %i\n", xh, yh, xl, yl);
 
 	if( color_buffer.pixsize == 3 )
 	{
@@ -160,7 +179,7 @@ void dp_reg_write32(u32 addr, u32 val)
 	} else if( addr == 1 ) {
 		dp_regs[1] = val&0x7FFFFF;
 	} else if( addr == 3 ) {
-		if( val & BIT(0) ) { dp_regs[3] &= BIT(0); }
+		if( val & BIT(0) ) { dp_regs[3] &= ~BIT(0); }
 		else if( val & BIT(1) ) { dp_regs[3] |= BIT(0); }
 	} else {
 		dp_regs[addr] = val;

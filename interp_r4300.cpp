@@ -1132,7 +1132,8 @@ void interp_bc1(u32 opcode)
 		{
 			branch_target = (cpu.PC+4) + offset;
 			branch_delay = 2;
-		}		break;
+		}		
+		break;
 	case 2: //BC1FL branch on cop1 false likely
 		if( !(cpu.FC31&BIT(23)) )
 		{

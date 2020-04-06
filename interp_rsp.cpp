@@ -22,6 +22,8 @@ typedef void(*interpptr)(u32);
 void rsp_rsp_interp_op(u32 opcode);
 u32 sp_reg_read32(u32);
 void sp_reg_write32(u32, u32);
+u32 dp_reg_read32(u32);
+void dp_reg_write32(u32, u32);
 static int branch_delay = 0;
 static u32 branch_target = 0;
 extern u8 DMEM[0x1000];
@@ -37,6 +39,7 @@ void write32_rsp(u32 addr, u32 v) { *(u32*)(DMEM+(addr&0xffc)) = __builtin_bswap
 void rsp_undef_opcode(u32 opcode)
 {
 	printf("RSP: Undefined opcode %x\n", opcode);
+	for(;;);
 	return;
 }
 
@@ -411,6 +414,13 @@ void rsp_interp_mfc0(u32 opcode)
 		rsp.R[rt] = sp_reg_read32(rd<<2);
 		return;
 	}
+	if( rd < 15 )
+	{
+		rd -= 8;
+		printf("RSP: writing to RDP, reg %i = %x\n", rd, (u32)rsp.R[rt]);
+		rsp.R[rt] = dp_reg_read32(rd<<2);
+		return;
+	}
 	printf("RSP: Unhandled MMIO rd = %i\n", rd);
 
 	return;
@@ -423,6 +433,13 @@ void rsp_interp_mtc0(u32 opcode)
 	if( rd < 8 )
 	{ //RSP regs
 		sp_reg_write32(rd<<2, rsp.R[rt]);
+		return;
+	}
+	if( rd < 15 )
+	{
+		rd -= 8;
+		printf("RSP: writing to RDP, reg %i = %x\n", rd, (u32)rsp.R[rt]);
+		dp_reg_write32(rd<<2, rsp.R[rt]);
 		return;
 	}
 	printf("RSP: Unhandled MMIO wr = %i\n", rd);
@@ -452,7 +469,13 @@ void rsp_interp_bc2(u32 opcode)
 
 void rsp_interp_mfc2(u32 opcode)
 {
-	printf("RSP: MFC2\n");
+	int rt = (opcode>>16)&0x1F;
+	int vd = (opcode>>11)&0x1F;
+	int e = (opcode>>7)&0x0F;
+	e ^= 0xF;
+
+	s16 temp = *(s16*)(rsp.V+(vd*16)+e);
+	rsp.R[rt] = (s32)temp;
 	return;
 }
 
@@ -478,7 +501,12 @@ void rsp_interp_cfc2(u32 opcode)
 
 void rsp_interp_mtc2(u32 opcode)
 {
-	printf("RSP: MTC2\n");
+	int rt = (opcode>>16)&0x1F;
+	int vd = (opcode>>11)&0x1F;
+	int e = (opcode>>7)&0x0F;
+	e ^= 0xF;
+
+	*(u16*)(rsp.V+(vd*16)+e) = (u16) rsp.R[rt];
 	return;
 }
 
@@ -1021,6 +1049,29 @@ void vmadm(u32 opcode)
 	return;
 }
 
+void vmadh(u32 opcode)
+{
+	COP2_PARTS;
+
+	for(int i = 0; i < 8; ++i)
+	{
+		VECPARTS;
+		s64 VS = *(s16*)(rsp.V+(vs*16)+(S<<1));
+		s64 VT = *(s16*)(rsp.V+(vt*16)+(J<<1));
+
+		s64 prd = VS * VT;
+			
+		rsp.A[S] += prd<<16;
+
+		s32 clamp =(s32)(rsp.A[S]>>16);
+		//if( clamp < -32768 ) clamp = -32768;
+		//else if( clamp > 32767 ) clamp = 32767;
+		*(u16*)(rsp.V+(vd*16)+(S<<1)) = clamp;
+	}
+
+	return;
+}
+
 void vmadn(u32 opcode)
 {
 	COP2_PARTS;
@@ -1028,14 +1079,14 @@ void vmadn(u32 opcode)
 	for(int i = 0; i < 8; ++i)
 	{
 		VECPARTS;
-		s32 VS = *(s16*)(rsp.V+(vs*16)+(S<<1));
-		s32 VT = *(s16*)(rsp.V+(vt*16)+(J<<1));
+		u32 VS = *(u16*)(rsp.V+(vs*16)+(S<<1));
+		s64 VT = *(s16*)(rsp.V+(vt*16)+(J<<1));
 
-		s32 prd = VS * VT;
+		s64 prd = (u64)VS * (s64)VT;
 			
 		rsp.A[S] += prd;
 
-		s32 clamp =(s32)(rsp.A[S]);
+		s32 clamp =(s32)(rsp.A[S]>>16);
 		//if( clamp < -32768 ) clamp = -32768;
 		//else if( clamp > 32767 ) clamp = 32767;
 		*(u16*)(rsp.V+(vd*16)+(S<<1)) = clamp;
@@ -1077,7 +1128,7 @@ void rsp_interp_cop2(u32 opcode)
 		case 0x0C: vmadl(opcode); return;
 		case 0x0D: vmadm(opcode); return;
 		case 0x0E: vmadn(opcode); return;
-
+		case 0x0F: vmadh(opcode); return;
 		case 0x10: vadd(opcode); return;
 		case 0x11: vsub(opcode); return;
 
